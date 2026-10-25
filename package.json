@@ -1,22 +1,22 @@
 {
-  "name": "travel_project",
+  "name": "mediconnect-monorepo",
   "version": "1.0.0",
-  "main": "index.ts",
-  "dependencies": {
-    "expo": "~58.0.19",
-    "expo-status-bar": "~58.0.4",
-    "react": "19.3.0",
-    "react-native": "0.88.0"
-  },
-  "devDependencies": {
-    "@types/react": "~19.3.0",
-    "typescript": "~6.0.3"
-  },
+  "private": true,
+  "description": "MediConnect Mobile App (Client) & Backend API (Server)",
+  "workspaces": [
+    "client",
+    "server"
+  ],
   "scripts": {
-    "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
-  },
-  "private": true
+    "client": "npm --prefix client start",
+    "client:android": "npm --prefix client run android",
+    "client:ios": "npm --prefix client run ios",
+    "client:lint": "npm --prefix client run lint",
+    "client:typecheck": "npm --prefix client run typecheck",
+    "server": "npm --prefix server run dev",
+    "server:build": "npm --prefix server run build",
+    "server:start": "npm --prefix server start",
+    "server:typecheck": "npm --prefix server run typecheck",
+    "install:all": "npm install"
+  }
 }

@@ -1,0 +1,405 @@
+// Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
+
+exports[`DoctorCard matches snapshot 1`] = `
+<View
+  accessibilityLabel="Doctor Dr. Jane Smith, General Practitioner"
+  accessibilityRole="button"
+  accessibilityState={
+    {
+      "busy": undefined,
+      "checked": undefined,
+      "disabled": undefined,
+      "expanded": undefined,
+      "selected": undefined,
+    }
+  }
+  accessibilityValue={
+    {
+      "max": undefined,
+      "min": undefined,
+      "now": undefined,
+      "text": undefined,
+    }
+  }
+  accessible={true}
+  collapsable={false}
+  focusable={true}
+  onClick={[Function]}
+  onResponderGrant={[Function]}
+  onResponderMove={[Function]}
+  onResponderRelease={[Function]}
+  onResponderTerminate={[Function]}
+  onResponderTerminationRequest={[Function]}
+  onStartShouldSetResponder={[Function]}
+  style={
+    {
+      "alignItems": "flex-start",
+      "backgroundColor": "#ffffff",
+      "borderRadius": 16,
+      "elevation": 4,
+      "flexDirection": "row",
+      "marginBottom": 12,
+      "opacity": 1,
+      "padding": 16,
+      "shadowColor": "#0f172a",
+      "shadowOffset": {
+        "height": 4,
+        "width": 0,
+      },
+      "shadowOpacity": 0.08,
+      "shadowRadius": 8,
+    }
+  }
+>
+  <View
+    style={
+      {
+        "marginRight": 12,
+        "position": "relative",
+      }
+    }
+  >
+    <Image
+      defaultSource={
+        {
+          "testUri": "../../../assets/icon.png",
+        }
+      }
+      source={
+        {
+          "uri": "https://randomuser.me/api/portraits/women/1.jpg",
+        }
+      }
+      style={
+        [
+          {
+            "backgroundColor": "#f1f5f9",
+            "borderRadius": 9999,
+            "height": 68,
+            "width": 68,
+          },
+          false,
+        ]
+      }
+    />
+    <View
+      style={
+        {
+          "backgroundColor": "#ffffff",
+          "borderRadius": 9999,
+          "bottom": 0,
+          "position": "absolute",
+          "right": -2,
+        }
+      }
+    >
+      <Text
+        color="#0ea5e9"
+        name="checkmark-circle"
+        size={16}
+      >
+        checkmark-circle
+      </Text>
+    </View>
+    <View
+      style={
+        {
+          "backgroundColor": "#22c55e",
+          "borderColor": "#ffffff",
+          "borderRadius": 5,
+          "borderWidth": 2,
+          "height": 10,
+          "position": "absolute",
+          "right": 2,
+          "top": 2,
+          "width": 10,
+        }
+      }
+    />
+  </View>
+  <View
+    style={
+      {
+        "flex": 1,
+      }
+    }
+  >
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "gap": 8,
+          "marginBottom": 2,
+        }
+      }
+    >
+      <Text
+        numberOfLines={1}
+        style={
+          {
+            "color": "#0f172a",
+            "flex": 1,
+            "fontFamily": "Inter_600SemiBold",
+            "fontSize": 16,
+          }
+        }
+      >
+        Dr. Jane Smith
+      </Text>
+      <View
+        style={
+          {
+            "backgroundColor": "#dcfce7",
+            "borderRadius": 9999,
+            "paddingHorizontal": 8,
+            "paddingVertical": 2,
+          }
+        }
+      >
+        <Text
+          style={
+            {
+              "color": "#15803d",
+              "fontFamily": "Inter_600SemiBold",
+              "fontSize": 10,
+            }
+          }
+        >
+          Now
+        </Text>
+      </View>
+    </View>
+    <Text
+      numberOfLines={1}
+      style={
+        {
+          "color": "#0284c7",
+          "fontFamily": "Inter_500Medium",
+          "fontSize": 13,
+          "marginBottom": 2,
+        }
+      }
+    >
+      General Practitioner
+    </Text>
+    <Text
+      numberOfLines={1}
+      style={
+        {
+          "color": "#64748b",
+          "fontFamily": "Inter_400Regular",
+          "fontSize": 11,
+          "marginBottom": 8,
+        }
+      }
+    >
+      Test Medical Center
+    </Text>
+    <View
+      style={
+        {
+          "alignItems": "center",
+          "flexDirection": "row",
+          "flexWrap": "wrap",
+          "gap": 4,
+          "marginBottom": 8,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "gap": 3,
+          }
+        }
+      >
+        <Text
+          color="#F59E0B"
+          name="star"
+          size={13}
+        >
+          star
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#334155",
+              "fontFamily": "Inter_500Medium",
+              "fontSize": 11,
+            }
+          }
+        >
+          4.8
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#94a3b8",
+              "fontFamily": "Inter_400Regular",
+              "fontSize": 11,
+            }
+          }
+        >
+           (
+          120
+          )
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "backgroundColor": "#cbd5e1",
+            "borderRadius": 2,
+            "height": 3,
+            "width": 3,
+          }
+        }
+      />
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "gap": 3,
+          }
+        }
+      >
+        <Text
+          color="#64748b"
+          name="time-outline"
+          size={13}
+        >
+          time-outline
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#334155",
+              "fontFamily": "Inter_500Medium",
+              "fontSize": 11,
+            }
+          }
+        >
+          10
+          yr
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "backgroundColor": "#cbd5e1",
+            "borderRadius": 2,
+            "height": 3,
+            "width": 3,
+          }
+        }
+      />
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "flexDirection": "row",
+            "gap": 3,
+          }
+        }
+      >
+        <Text
+          color="#64748b"
+          name="cash-outline"
+          size={13}
+        >
+          cash-outline
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#334155",
+              "fontFamily": "Inter_500Medium",
+              "fontSize": 11,
+            }
+          }
+        >
+          $90
+        </Text>
+      </View>
+    </View>
+    <View
+      style={
+        {
+          "flexDirection": "row",
+          "flexWrap": "wrap",
+          "gap": 8,
+        }
+      }
+    >
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "backgroundColor": "#f0f9ff",
+            "borderRadius": 9999,
+            "flexDirection": "row",
+            "gap": 3,
+            "paddingHorizontal": 7,
+            "paddingVertical": 3,
+          }
+        }
+      >
+        <Text
+          color="#0284c7"
+          name="videocam-outline"
+          size={11}
+        >
+          videocam-outline
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#0369a1",
+              "fontFamily": "Inter_500Medium",
+              "fontSize": 10,
+            }
+          }
+        >
+          Video
+        </Text>
+      </View>
+      <View
+        style={
+          {
+            "alignItems": "center",
+            "backgroundColor": "#f0f9ff",
+            "borderRadius": 9999,
+            "flexDirection": "row",
+            "gap": 3,
+            "paddingHorizontal": 7,
+            "paddingVertical": 3,
+          }
+        }
+      >
+        <Text
+          color="#0284c7"
+          name="chatbubble-outline"
+          size={11}
+        >
+          chatbubble-outline
+        </Text>
+        <Text
+          style={
+            {
+              "color": "#0369a1",
+              "fontFamily": "Inter_500Medium",
+              "fontSize": 10,
+            }
+          }
+        >
+          Chat
+        </Text>
+      </View>
+    </View>
+  </View>
+</View>
+`;
