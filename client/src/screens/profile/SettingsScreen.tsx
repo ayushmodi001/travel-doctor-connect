@@ -2,9 +2,9 @@
  * SettingsScreen – app settings with language, notifications, and preferences.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet,
+  View, Text, ScrollView, TouchableOpacity, Switch, StyleSheet, Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -13,6 +13,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ProfileStackParamList } from '../../types';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme';
 import { Divider } from '../../components/ui/primitives';
+import { UserService } from '../../services/api';
 import { i18n, SUPPORTED_LOCALES } from '../../localization/i18n';
 
 type NavProp = NativeStackNavigationProp<ProfileStackParamList, 'Settings'>;
@@ -25,6 +26,28 @@ const SettingsScreen: React.FC = () => {
   const [location, setLocation]           = useState(true);
   const [biometric, setBiometric]         = useState(false);
   const [language, setLanguage]           = useState(i18n.locale);
+
+  useEffect(() => {
+    let cancelled = false;
+    UserService.getSettings().then(res => {
+      if (!cancelled && res) {
+        if (res.notifications !== undefined) setNotifications(res.notifications);
+        if (res.darkMode !== undefined) setDarkMode(res.darkMode);
+        if (res.location !== undefined) setLocation(res.location);
+        if (res.biometric !== undefined) setBiometric(res.biometric);
+        if (res.language) setLanguage(res.language);
+      }
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
+  const handleUpdate = useCallback(async (key: string, value: any) => {
+    try {
+      await UserService.updateSettings({ [key]: value });
+    } catch (err: any) {
+      Alert.alert('Settings Error', err.message || 'Failed to save preference on server.');
+    }
+  }, []);
 
   const APP_VERSION = '1.0.0';
 

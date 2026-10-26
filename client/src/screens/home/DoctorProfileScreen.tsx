@@ -23,12 +23,14 @@ import { i18n } from '../../localization/i18n';
 type NavProp  = NativeStackNavigationProp<HomeStackParamList, 'DoctorProfile'>;
 type RouteType = RouteProp<HomeStackParamList, 'DoctorProfile'>;
 
+import { ErrorState } from '../../components/ui/ErrorState';
+
 const DoctorProfileScreen: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const route      = useRoute<RouteType>();
   const { doctorId } = route.params;
 
-  const { doctor, isLoading } = useDoctor(doctorId);
+  const { doctor, isLoading, error } = useDoctor(doctorId);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [activeTab, setActiveTab]       = useState<'about' | 'reviews'>('about');
 
@@ -40,7 +42,22 @@ const DoctorProfileScreen: React.FC = () => {
     );
   }
 
-  if (!doctor) return null;
+  if (error || !doctor) {
+    return (
+      <View style={styles.container}>
+        <View style={{ paddingHorizontal: Spacing[4], paddingTop: Spacing[10] }}>
+          <TouchableOpacity onPress={() => navigation.goBack()}>
+            <Ionicons name="arrow-back" size={22} color={Colors.neutral[800]} />
+          </TouchableOpacity>
+        </View>
+        <ErrorState
+          title="Doctor Unavailable"
+          message={error || `Doctor ${doctorId} could not be loaded from healthcare server.`}
+          onRetry={() => navigation.goBack()}
+        />
+      </View>
+    );
+  }
 
   const availableSlots = doctor.availableSlots.filter(s => !s.isBooked);
 

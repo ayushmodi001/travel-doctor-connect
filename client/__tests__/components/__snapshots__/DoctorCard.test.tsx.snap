@@ -34,20 +34,22 @@ exports[`DoctorCard matches snapshot 1`] = `
   style={
     {
       "alignItems": "flex-start",
-      "backgroundColor": "#ffffff",
-      "borderRadius": 16,
-      "elevation": 4,
+      "backgroundColor": "#FFFFFF",
+      "borderColor": "#EAE4DC",
+      "borderRadius": 30,
+      "borderWidth": 1.5,
+      "elevation": 2,
       "flexDirection": "row",
       "marginBottom": 12,
       "opacity": 1,
       "padding": 16,
-      "shadowColor": "#0f172a",
+      "shadowColor": "#2B1C14",
       "shadowOffset": {
-        "height": 4,
+        "height": 2,
         "width": 0,
       },
-      "shadowOpacity": 0.08,
-      "shadowRadius": 8,
+      "shadowOpacity": 0.05,
+      "shadowRadius": 6,
     }
   }
 >
@@ -62,7 +64,7 @@ exports[`DoctorCard matches snapshot 1`] = `
     <Image
       defaultSource={
         {
-          "testUri": "../../../assets/icon.png",
+          "testUri": "../../../client/assets/icon.png",
         }
       }
       source={
@@ -73,8 +75,8 @@ exports[`DoctorCard matches snapshot 1`] = `
       style={
         [
           {
-            "backgroundColor": "#f1f5f9",
-            "borderRadius": 9999,
+            "backgroundColor": "#EAE4DC",
+            "borderRadius": 24,
             "height": 68,
             "width": 68,
           },
@@ -85,16 +87,16 @@ exports[`DoctorCard matches snapshot 1`] = `
     <View
       style={
         {
-          "backgroundColor": "#ffffff",
+          "backgroundColor": "#FFFFFF",
           "borderRadius": 9999,
-          "bottom": 0,
+          "bottom": -2,
           "position": "absolute",
           "right": -2,
         }
       }
     >
       <Text
-        color="#0ea5e9"
+        color="#2E7D32"
         name="checkmark-circle"
         size={16}
       >
@@ -104,15 +106,15 @@ exports[`DoctorCard matches snapshot 1`] = `
     <View
       style={
         {
-          "backgroundColor": "#22c55e",
-          "borderColor": "#ffffff",
-          "borderRadius": 5,
+          "backgroundColor": "#2E7D32",
+          "borderColor": "#FFFFFF",
+          "borderRadius": 6,
           "borderWidth": 2,
-          "height": 10,
+          "height": 12,
           "position": "absolute",
           "right": 2,
           "top": 2,
-          "width": 10,
+          "width": 12,
         }
       }
     />
@@ -138,10 +140,11 @@ exports[`DoctorCard matches snapshot 1`] = `
         numberOfLines={1}
         style={
           {
-            "color": "#0f172a",
+            "color": "#191512",
             "flex": 1,
-            "fontFamily": "Inter_600SemiBold",
+            "fontFamily": "Inter_700Bold",
             "fontSize": 16,
+            "letterSpacing": -0.2,
           }
         }
       >
@@ -150,7 +153,7 @@ exports[`DoctorCard matches snapshot 1`] = `
       <View
         style={
           {
-            "backgroundColor": "#dcfce7",
+            "backgroundColor": "#E8F5E9",
             "borderRadius": 9999,
             "paddingHorizontal": 8,
             "paddingVertical": 2,
@@ -160,8 +163,8 @@ exports[`DoctorCard matches snapshot 1`] = `
         <Text
           style={
             {
-              "color": "#15803d",
-              "fontFamily": "Inter_600SemiBold",
+              "color": "#1B5E20",
+              "fontFamily": "Inter_700Bold",
               "fontSize": 10,
             }
           }
@@ -174,8 +177,8 @@ exports[`DoctorCard matches snapshot 1`] = `
       numberOfLines={1}
       style={
         {
-          "color": "#0284c7",
-          "fontFamily": "Inter_500Medium",
+          "color": "#CC001E",
+          "fontFamily": "Inter_600SemiBold",
           "fontSize": 13,
           "marginBottom": 2,
         }
@@ -187,8 +190,8 @@ exports[`DoctorCard matches snapshot 1`] = `
       numberOfLines={1}
       style={
         {
-          "color": "#64748b",
-          "fontFamily": "Inter_400Regular",
+          "color": "#6E645A",
+          "fontFamily": "Inter_500Medium",
           "fontSize": 11,
           "marginBottom": 8,
         }
@@ -217,7 +220,7 @@ exports[`DoctorCard matches snapshot 1`] = `
         }
       >
         <Text
-          color="#F59E0B"
+          color="#D97706"
           name="star"
           size={13}
         >
@@ -226,8 +229,8 @@ exports[`DoctorCard matches snapshot 1`] = `
         <Text
           style={
             {
-              "color": "#334155",
-              "fontFamily": "Inter_500Medium",
+              "color": "#241E1A",
+              "fontFamily": "Inter_600SemiBold",
               "fontSize": 11,
             }
           }
@@ -237,7 +240,7 @@ exports[`DoctorCard matches snapshot 1`] = `
         <Text
           style={
             {
-              "color": "#94a3b8",
+              "color": "#968B7E",
               "fontFamily": "Inter_400Regular",
               "fontSize": 11,
             }
@@ -251,7 +254,7 @@ exports[`DoctorCard matches snapshot 1`] = `
       <View
         style={
           {
-            "backgroundColor": "#cbd5e1",
+            "backgroundColor": "#C7BCAD",
             "borderRadius": 2,
             "height": 3,
             "width": 3,
@@ -268,7 +271,7 @@ exports[`DoctorCard matches snapshot 1`] = `
         }
       >
         <Text
-          color="#64748b"
+          color="#6E645A"
           name="time-outline"
           size={13}
         >
@@ -277,8 +280,8 @@ exports[`DoctorCard matches snapshot 1`] = `
         <Text
           style={
             {
-              "color": "#334155",
-              "fontFamily": "Inter_500Medium",
+              "color": "#241E1A",
+              "fontFamily": "Inter_600SemiBold",
               "fontSize": 11,
             }
           }
@@ -290,7 +293,7 @@ exports[`DoctorCard matches snapshot 1`] = `
       <View
         style={
           {
-            "backgroundColor": "#cbd5e1",
+            "backgroundColor": "#C7BCAD",
             "borderRadius": 2,
             "height": 3,
             "width": 3,
@@ -307,7 +310,7 @@ exports[`DoctorCard matches snapshot 1`] = `
         }
       >
         <Text
-          color="#64748b"
+          color="#6E645A"
           name="cash-outline"
           size={13}
         >
@@ -316,8 +319,8 @@ exports[`DoctorCard matches snapshot 1`] = `
         <Text
           style={
             {
-              "color": "#334155",
-              "fontFamily": "Inter_500Medium",
+              "color": "#241E1A",
+              "fontFamily": "Inter_600SemiBold",
               "fontSize": 11,
             }
           }
@@ -339,17 +342,17 @@ exports[`DoctorCard matches snapshot 1`] = `
         style={
           {
             "alignItems": "center",
-            "backgroundColor": "#f0f9ff",
+            "backgroundColor": "#FFF5F5",
             "borderRadius": 9999,
             "flexDirection": "row",
             "gap": 3,
-            "paddingHorizontal": 7,
+            "paddingHorizontal": 8,
             "paddingVertical": 3,
           }
         }
       >
         <Text
-          color="#0284c7"
+          color="#CC001E"
           name="videocam-outline"
           size={11}
         >
@@ -358,8 +361,8 @@ exports[`DoctorCard matches snapshot 1`] = `
         <Text
           style={
             {
-              "color": "#0369a1",
-              "fontFamily": "Inter_500Medium",
+              "color": "#B00019",
+              "fontFamily": "Inter_600SemiBold",
               "fontSize": 10,
             }
           }
@@ -371,17 +374,17 @@ exports[`DoctorCard matches snapshot 1`] = `
         style={
           {
             "alignItems": "center",
-            "backgroundColor": "#f0f9ff",
+            "backgroundColor": "#FFF5F5",
             "borderRadius": 9999,
             "flexDirection": "row",
             "gap": 3,
-            "paddingHorizontal": 7,
+            "paddingHorizontal": 8,
             "paddingVertical": 3,
           }
         }
       >
         <Text
-          color="#0284c7"
+          color="#CC001E"
           name="chatbubble-outline"
           size={11}
         >
@@ -390,8 +393,8 @@ exports[`DoctorCard matches snapshot 1`] = `
         <Text
           style={
             {
-              "color": "#0369a1",
-              "fontFamily": "Inter_500Medium",
+              "color": "#B00019",
+              "fontFamily": "Inter_600SemiBold",
               "fontSize": 10,
             }
           }

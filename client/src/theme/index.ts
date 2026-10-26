@@ -1,72 +1,128 @@
 /**
- * Design System: Centralized theme tokens for the MediConnect app.
- * Professional, clean medical UI palette – no cartoonish elements.
+ * Design System: Centralized theme tokens for MediConnect.
+ * Modern clinical & travel companion aesthetic:
+ * Clean slate canvas, clinical azure & medical teal primary palette,
+ * emerald health accents, refined elevation, and crisp typography.
  */
 
 export const Colors = {
-  // Primary brand palette – deep teal/slate
+  // Primary brand palette – Clinical Azure & Deep Ocean
   primary: {
-    50:  '#f0f9ff',
-    100: '#e0f2fe',
-    200: '#bae6fd',
-    300: '#7dd3fc',
-    400: '#38bdf8',
-    500: '#0ea5e9',  // brand primary
-    600: '#0284c7',
-    700: '#0369a1',
-    800: '#075985',
-    900: '#0c4a6e',
+    50:  '#F0F9FF',
+    100: '#E0F2FE',
+    200: '#BAE6FD',
+    300: '#7DD3FC',
+    400: '#38BDF8',
+    500: '#0284C7', // Signature Clinical Ocean Azure
+    600: '#0369A1',
+    700: '#075985',
+    800: '#0C4A6E',
+    900: '#082F49',
   },
 
-  // Neutral greys (backgrounds, text, borders)
+  // Medical Teal & Sage (cards, badges, verified accents)
+  teal: {
+    50:    '#F0FDFA',
+    light: '#CCFBF1',
+    main:  '#0D9488', // Medical Teal
+    dark:  '#0F766E',
+  },
+
+  // Sage Green (verified doctors, ratings, health metrics)
+  sage: {
+    50:    '#F0FDF4',
+    light: '#DCFCE7',
+    main:  '#16A34A', // Clinical Emerald
+    dark:  '#15803D',
+  },
+
+  // Coral & Terracotta accents
+  terracotta: {
+    50:    '#FFF7ED',
+    light: '#FFEDD5',
+    main:  '#EA580C',
+    dark:  '#C2410C',
+  },
+
+  // Backward compatibility aliases
+  coral: {
+    50:    '#FFF7ED',
+    light: '#FFEDD5',
+    main:  '#EA580C',
+    dark:  '#C2410C',
+  },
+  mint: {
+    50:    '#F0FDF4',
+    light: '#DCFCE7',
+    main:  '#16A34A',
+    dark:  '#15803D',
+  },
+
+  // Amber Ochre (pending states, triage warnings, notes)
+  ochre: {
+    50:    '#FFFBEB',
+    light: '#FEF3C7',
+    main:  '#D97706',
+    dark:  '#B45309',
+  },
+
+  // Neutral palette – Crisp Clinical Slate
   neutral: {
-    0:   '#ffffff',
-    50:  '#f8fafc',
-    100: '#f1f5f9',
-    150: '#eef2f7',
-    200: '#e2e8f0',
-    300: '#cbd5e1',
-    400: '#94a3b8',
-    500: '#64748b',
-    600: '#475569',
-    700: '#334155',
-    800: '#1e293b',
-    900: '#0f172a',
+    0:   '#FFFFFF',
+    50:  '#F8FAFC', // Slate background canvas
+    100: '#F1F5F9', // Light surface
+    150: '#E2E8F0', // Hairline borders
+    200: '#CBD5E1',
+    300: '#94A3B8',
+    400: '#64748B', // Soft muted text
+    500: '#475569', // Secondary text
+    600: '#334155',
+    700: '#1E293B',
+    800: '#0F172A',
+    900: '#020617', // Primary deep slate text
   },
 
   // Semantic colours
   success: {
-    light: '#dcfce7',
-    main:  '#22c55e',
-    dark:  '#15803d',
+    light: '#DCFCE7',
+    main:  '#16A34A',
+    dark:  '#15803D',
   },
   warning: {
-    light: '#fef9c3',
-    main:  '#eab308',
-    dark:  '#a16207',
+    light: '#FEF3C7',
+    main:  '#D97706',
+    dark:  '#B45309',
   },
   error: {
-    light: '#fee2e2',
-    main:  '#ef4444',
-    dark:  '#b91c1c',
+    light: '#FEF2F2',
+    main:  '#DC2626',
+    dark:  '#B91C1C',
   },
   info: {
-    light: '#dbeafe',
-    main:  '#3b82f6',
-    dark:  '#1d4ed8',
+    light: '#F0F9FF',
+    main:  '#0284C7',
+    dark:  '#0369A1',
   },
 
   // Severity levels (triage)
   severity: {
-    low:      '#22c55e',
-    moderate: '#eab308',
-    high:     '#f97316',
-    critical: '#ef4444',
+    low:      '#16A34A',
+    moderate: '#D97706',
+    high:     '#EA580C',
+    critical: '#DC2626',
   },
 
-  // Common shorthands
-  white:       '#ffffff',
-  black:       '#0f172a',
+  // Ticket card gradient – Deep Marine Azure & Slate Teal
+  ticket: {
+    start: '#0F766E',
+    end:   '#0C4A6E',
+  },
+
+  // Shorthands
+  canvas:      '#F8FAFC',
+  card:        '#FFFFFF',
+  white:       '#FFFFFF',
+  black:       '#020617',
   transparent: 'transparent',
 };
 
@@ -83,16 +139,22 @@ export const Typography = {
     base: 15,
     md:   16,
     lg:   18,
-    xl:   20,
-    '2xl': 24,
-    '3xl': 28,
-    '4xl': 32,
-    '5xl': 40,
+    xl:   21,
+    '2xl': 25,
+    '3xl': 29,
+    '4xl': 34,
+    '5xl': 42,
   },
   lineHeight: {
-    tight:   1.25,
-    normal:  1.5,
-    relaxed: 1.75,
+    tight:   1.2,
+    normal:  1.45,
+    relaxed: 1.7,
+  },
+  letterSpacing: {
+    tight: -0.6,
+    tighter: -1.0,
+    normal: 0,
+    wide: 0.4,
   },
 };
 
@@ -114,39 +176,67 @@ export const Spacing = {
 
 export const BorderRadius = {
   none: 0,
-  sm:   4,
-  md:   8,
-  lg:   12,
-  xl:   16,
-  '2xl': 20,
-  '3xl': 24,
+  sm:   6,
+  md:   10,
+  lg:   14,
+  xl:   18,
+  '2xl': 24,
+  '3xl': 30,
   full: 9999,
 };
 
 export const Shadows = {
   sm: {
-    shadowColor: '#0f172a',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
     elevation: 2,
   },
   md: {
-    shadowColor: '#0f172a',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
   },
   lg: {
-    shadowColor: '#0f172a',
+    shadowColor: '#0F172A',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 8,
   },
+  card: {
+    shadowColor: '#0F172A',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.07,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  elevation: {
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  // Backward compatibility alias
+  pinterest: {
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  iris: {
+    shadowColor: '#0284C7',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.12,
+    shadowRadius: 8,
+    elevation: 3,
+  },
 };
 
-// Convenience alias used throughout screens
 export const theme = { Colors, Typography, Spacing, BorderRadius, Shadows };
 export default theme;

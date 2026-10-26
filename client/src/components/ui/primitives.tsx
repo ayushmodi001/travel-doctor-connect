@@ -1,6 +1,6 @@
 /**
- * Shared reusable UI primitives used across the app.
- * Keeps styling consistent with the design system.
+ * Shared reusable UI primitives used across MediConnect.
+ * Styled with modern clinical design tokens (clean geometry, accessible contrast, tactile feedback).
  */
 
 import React from 'react';
@@ -22,7 +22,7 @@ import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme'
 interface ButtonProps {
   label: string;
   onPress: () => void;
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger' | 'outline';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   disabled?: boolean;
@@ -31,11 +31,17 @@ interface ButtonProps {
 }
 
 export const Button: React.FC<ButtonProps> = ({
-  label, onPress, variant = 'primary', size = 'md',
-  isLoading = false, disabled = false, icon, style,
+  label,
+  onPress,
+  variant = 'primary',
+  size = 'md',
+  isLoading = false,
+  disabled = false,
+  icon,
+  style,
 }) => {
   const isDisabled = disabled || isLoading;
-  const btnStyle   = [
+  const btnStyle = [
     styles.btn,
     styles[`btn_${variant}`],
     styles[`btn_${size}`],
@@ -49,19 +55,28 @@ export const Button: React.FC<ButtonProps> = ({
       style={btnStyle}
       onPress={onPress}
       disabled={isDisabled}
-      activeOpacity={0.8}
+      activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={label}
     >
       {isLoading ? (
-        <ActivityIndicator color={variant === 'primary' ? Colors.white : Colors.primary[500]} size="small" />
+        <ActivityIndicator
+          color={variant === 'primary' || variant === 'danger' ? Colors.white : Colors.primary[500]}
+          size="small"
+        />
       ) : (
         <>
           {icon && (
             <Ionicons
               name={icon}
-              size={size === 'sm' ? 14 : size === 'lg' ? 20 : 16}
-              color={variant === 'primary' ? Colors.white : Colors.primary[500]}
+              size={size === 'sm' ? 15 : size === 'lg' ? 20 : 17}
+              color={
+                variant === 'primary' || variant === 'danger'
+                  ? Colors.white
+                  : variant === 'secondary'
+                  ? Colors.neutral[800]
+                  : Colors.primary[500]
+              }
             />
           )}
           <Text style={textStyle}>{label}</Text>
@@ -91,16 +106,37 @@ interface InputFieldProps {
 }
 
 export const InputField: React.FC<InputFieldProps> = ({
-  label, placeholder, value, onChangeText,
-  secureTextEntry = false, keyboardType = 'default',
-  autoCapitalize = 'sentences', error, icon,
-  rightIcon, onRightIconPress, style, multiline, numberOfLines,
+  label,
+  placeholder,
+  value,
+  onChangeText,
+  secureTextEntry = false,
+  keyboardType = 'default',
+  autoCapitalize = 'sentences',
+  error,
+  icon,
+  rightIcon,
+  onRightIconPress,
+  style,
+  multiline,
+  numberOfLines,
 }) => (
   <View style={[styles.inputWrapper, style]}>
     {label && <Text style={styles.inputLabel}>{label}</Text>}
-    <View style={[styles.inputContainer, error ? styles.inputError : null, multiline ? styles.inputMultiline : null]}>
+    <View
+      style={[
+        styles.inputContainer,
+        error ? styles.inputError : null,
+        multiline ? styles.inputMultiline : null,
+      ]}
+    >
       {icon && (
-        <Ionicons name={icon} size={18} color={error ? Colors.error.main : Colors.neutral[400]} style={styles.inputIcon} />
+        <Ionicons
+          name={icon}
+          size={18}
+          color={error ? Colors.error.main : Colors.neutral[400]}
+          style={styles.inputIcon}
+        />
       )}
       <TextInput
         style={[styles.input, multiline ? styles.inputMultilineText : null]}
@@ -116,7 +152,7 @@ export const InputField: React.FC<InputFieldProps> = ({
       />
       {rightIcon && (
         <TouchableOpacity onPress={onRightIconPress} style={styles.rightIconBtn}>
-          <Ionicons name={rightIcon} size={18} color={Colors.neutral[400]} />
+          <Ionicons name={rightIcon} size={18} color={Colors.neutral[500]} />
         </TouchableOpacity>
       )}
     </View>
@@ -136,7 +172,7 @@ export const SectionHeader: React.FC<SectionHeaderProps> = ({ title, action, onA
   <View style={styles.sectionHeader}>
     <Text style={styles.sectionTitle}>{title}</Text>
     {action && (
-      <TouchableOpacity onPress={onActionPress}>
+      <TouchableOpacity onPress={onActionPress} activeOpacity={0.7}>
         <Text style={styles.sectionAction}>{action}</Text>
       </TouchableOpacity>
     )}
@@ -163,16 +199,26 @@ interface EmptyStateProps {
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
-  icon = 'search-outline', title, subtitle, actionLabel, onAction,
+  icon = 'search-outline',
+  title,
+  subtitle,
+  actionLabel,
+  onAction,
 }) => (
   <View style={styles.emptyState}>
     <View style={styles.emptyIcon}>
-      <Ionicons name={icon} size={36} color={Colors.neutral[400]} />
+      <Ionicons name={icon} size={34} color={Colors.neutral[400]} />
     </View>
     <Text style={styles.emptyTitle}>{title}</Text>
     {subtitle && <Text style={styles.emptySubtitle}>{subtitle}</Text>}
     {actionLabel && onAction && (
-      <Button label={actionLabel} onPress={onAction} variant="primary" size="sm" style={styles.emptyAction} />
+      <Button
+        label={actionLabel}
+        onPress={onAction}
+        variant="primary"
+        size="sm"
+        style={styles.emptyAction}
+      />
     )}
   </View>
 );
@@ -187,8 +233,8 @@ interface BadgeProps {
 
 export const Badge: React.FC<BadgeProps> = ({
   label,
-  color = Colors.primary[600],
-  bg    = Colors.primary[50],
+  color = Colors.primary[700],
+  bg = Colors.primary[50],
 }) => (
   <View style={[styles.badgeContainer, { backgroundColor: bg }]}>
     <Text style={[styles.badgeLabel, { color }]}>{label}</Text>
@@ -206,25 +252,44 @@ export const Divider: React.FC<{ style?: ViewStyle }> = ({ style }) => (
 interface AvatarProps {
   uri?: string;
   size?: number;
-  name?: string; // for initials fallback
+  name?: string;
 }
 
 export const Avatar: React.FC<AvatarProps> = ({ uri, size = 48, name }) => {
   const initials = name
-    ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
+    ? name
+        .split(' ')
+        .map(n => n[0])
+        .join('')
+        .toUpperCase()
+        .slice(0, 2)
     : '?';
 
   if (uri) {
     return (
       <Image
         source={{ uri }}
-        style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: Colors.neutral[100] }}
+        style={{
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          backgroundColor: Colors.neutral[150],
+        }}
       />
     );
   }
   return (
-    <View style={[styles.avatarFallback, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.avatarInitials, { fontSize: size * 0.35 }]}>{initials}</Text>
+    <View
+      style={[
+        styles.avatarFallback,
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+        },
+      ]}
+    >
+      <Text style={[styles.avatarInitials, { fontSize: size * 0.36 }]}>{initials}</Text>
     </View>
   );
 };
@@ -232,58 +297,90 @@ export const Avatar: React.FC<AvatarProps> = ({ uri, size = 48, name }) => {
 // ─── Styles ───────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // Button
+  // Button - Clean tactile pill style
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing[2],
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.full,
   },
-  btn_primary:   { backgroundColor: Colors.primary[500] },
-  btn_secondary: { backgroundColor: Colors.neutral[100], borderWidth: 1, borderColor: Colors.neutral[200] },
-  btn_ghost:     { backgroundColor: Colors.transparent },
-  btn_danger:    { backgroundColor: Colors.error.main },
-  btn_sm:        { paddingVertical: Spacing[2], paddingHorizontal: Spacing[3] },
-  btn_md:        { paddingVertical: Spacing[3], paddingHorizontal: Spacing[4] },
-  btn_lg:        { paddingVertical: Spacing[4], paddingHorizontal: Spacing[6] },
-  btnDisabled:   { opacity: 0.5 },
+  btn_primary: {
+    backgroundColor: Colors.primary[500],
+    ...Shadows.card,
+  },
+  btn_secondary: {
+    backgroundColor: Colors.neutral[100],
+    borderWidth: 1,
+    borderColor: Colors.neutral[150],
+  },
+  btn_outline: {
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[200],
+  },
+  btn_ghost: {
+    backgroundColor: Colors.transparent,
+  },
+  btn_danger: {
+    backgroundColor: Colors.primary[500],
+  },
+  btn_sm: {
+    paddingVertical: Spacing[2],
+    paddingHorizontal: Spacing[4],
+  },
+  btn_md: {
+    paddingVertical: Spacing[3],
+    paddingHorizontal: Spacing[5],
+  },
+  btn_lg: {
+    paddingVertical: 14,
+    paddingHorizontal: Spacing[6],
+  },
+  btnDisabled: {
+    opacity: 0.45,
+  },
   btnText: {
     fontFamily: Typography.fontFamily.semiBold,
+    letterSpacing: -0.2,
   },
-  btnText_primary:   { color: Colors.white },
-  btnText_secondary: { color: Colors.neutral[700] },
-  btnText_ghost:     { color: Colors.primary[500] },
-  btnText_danger:    { color: Colors.white },
-  btnText_sm:        { fontSize: Typography.fontSize.sm },
-  btnText_md:        { fontSize: Typography.fontSize.base },
-  btnText_lg:        { fontSize: Typography.fontSize.lg },
+  btnText_primary: { color: Colors.white },
+  btnText_secondary: { color: Colors.neutral[800] },
+  btnText_outline: { color: Colors.neutral[900] },
+  btnText_ghost: { color: Colors.primary[500] },
+  btnText_danger: { color: Colors.white },
+  btnText_sm: { fontSize: Typography.fontSize.sm },
+  btnText_md: { fontSize: Typography.fontSize.base },
+  btnText_lg: { fontSize: Typography.fontSize.md },
 
-  // Input
+  // Input - Soft warm stone border & gentle corners
   inputWrapper: { marginBottom: Spacing[4] },
   inputLabel: {
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.medium,
-    color: Colors.neutral[700],
+    color: Colors.neutral[800],
     marginBottom: Spacing[2],
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.neutral[50],
-    borderWidth: 1,
-    borderColor: Colors.neutral[200],
-    borderRadius: BorderRadius.lg,
-    paddingHorizontal: Spacing[3],
-    minHeight: 50,
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[150],
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing[4],
+    minHeight: 52,
   },
   inputMultiline: {
     alignItems: 'flex-start',
     paddingVertical: Spacing[3],
-    minHeight: 100,
+    minHeight: 110,
   },
-  inputError: { borderColor: Colors.error.main, backgroundColor: Colors.error.light + '33' },
-  inputIcon:  { marginRight: Spacing[2] },
+  inputError: {
+    borderColor: Colors.error.main,
+    backgroundColor: Colors.error.light,
+  },
+  inputIcon: { marginRight: Spacing[2] },
   input: {
     flex: 1,
     fontSize: Typography.fontSize.base,
@@ -297,9 +394,10 @@ const styles = StyleSheet.create({
   rightIconBtn: { padding: Spacing[1] },
   errorText: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
+    fontFamily: Typography.fontFamily.medium,
     color: Colors.error.main,
     marginTop: Spacing[1],
+    marginLeft: Spacing[1],
   },
 
   // Section header
@@ -311,12 +409,13 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: Typography.fontSize.lg,
-    fontFamily: Typography.fontFamily.semiBold,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.neutral[900],
+    letterSpacing: -0.4,
   },
   sectionAction: {
     fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
+    fontFamily: Typography.fontFamily.semiBold,
     color: Colors.primary[500],
   },
 
@@ -326,11 +425,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: Spacing[3],
+    backgroundColor: Colors.canvas,
   },
   loadingText: {
     fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.neutral[500],
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[600],
   },
 
   // Empty state
@@ -341,8 +441,8 @@ const styles = StyleSheet.create({
     gap: Spacing[3],
   },
   emptyIcon: {
-    width: 72,
-    height: 72,
+    width: 68,
+    height: 68,
     borderRadius: BorderRadius.full,
     backgroundColor: Colors.neutral[100],
     alignItems: 'center',
@@ -350,9 +450,10 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: Typography.fontSize.lg,
-    fontFamily: Typography.fontFamily.semiBold,
-    color: Colors.neutral[800],
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.neutral[900],
     textAlign: 'center',
+    letterSpacing: -0.3,
   },
   emptySubtitle: {
     fontSize: Typography.fontSize.sm,
@@ -360,35 +461,40 @@ const styles = StyleSheet.create({
     color: Colors.neutral[500],
     textAlign: 'center',
     lineHeight: 20,
+    maxWidth: 280,
   },
   emptyAction: { marginTop: Spacing[2] },
 
-  // Badge
+  // Badge - Status pill tag
   badgeContainer: {
-    paddingHorizontal: Spacing[2],
-    paddingVertical: 3,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 4,
     borderRadius: BorderRadius.full,
+    alignSelf: 'flex-start',
   },
   badgeLabel: {
-    fontSize: 11,
+    fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamily.semiBold,
+    letterSpacing: 0.1,
   },
 
   // Divider
   divider: {
     height: 1,
-    backgroundColor: Colors.neutral[100],
-    marginVertical: Spacing[3],
+    backgroundColor: Colors.neutral[150],
+    marginVertical: Spacing[4],
   },
 
   // Avatar
   avatarFallback: {
-    backgroundColor: Colors.primary[100],
+    backgroundColor: Colors.primary[50],
+    borderWidth: 1,
+    borderColor: Colors.primary[100],
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitials: {
-    fontFamily: Typography.fontFamily.semiBold,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.primary[700],
   },
 });

@@ -1,6 +1,6 @@
 /**
- * DoctorCard – reusable card component to display doctor information.
- * Used in the DoctorList screen and Home screen quick-picks.
+ * DoctorCard – Reusable card component to display doctor information.
+ * Features: Tactile pill geometry, clinical teal & sage status badges, and ocean azure actions.
  */
 
 import React from 'react';
@@ -49,7 +49,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({
         />
         {doctor.verified && (
           <View style={styles.verifiedBadge}>
-            <Ionicons name="checkmark-circle" size={16} color={Colors.primary[500]} />
+            <Ionicons name="checkmark-circle" size={16} color={Colors.sage.main} />
           </View>
         )}
         {doctor.isAvailableNow && !isCompact && (
@@ -76,7 +76,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({
         {/* Stats row */}
         <View style={styles.statsRow}>
           <View style={styles.stat}>
-            <Ionicons name="star" size={13} color="#F59E0B" />
+            <Ionicons name="star" size={13} color="#D97706" />
             <Text style={styles.statText}>{doctor.rating.toFixed(1)}</Text>
             {!isCompact && (
               <Text style={styles.statSub}> ({doctor.reviewCount})</Text>
@@ -130,6 +130,7 @@ const DoctorCard: React.FC<DoctorCardProps> = ({
           onPress={onBookPress}
           accessibilityRole="button"
           accessibilityLabel={`Book appointment with ${doctor.name}`}
+          activeOpacity={0.8}
         >
           <Text style={styles.bookBtnText}>Book</Text>
         </TouchableOpacity>
@@ -142,11 +143,13 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     backgroundColor: Colors.white,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius['3xl'],
     padding: Spacing[4],
     marginBottom: Spacing[3],
     alignItems: 'flex-start',
-    ...Shadows.md,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[150],
+    ...Shadows.sm,
   },
   cardCompact: {
     padding: Spacing[3],
@@ -161,16 +164,17 @@ const styles = StyleSheet.create({
   avatar: {
     width: 68,
     height: 68,
-    borderRadius: BorderRadius.full,
-    backgroundColor: Colors.neutral[100],
+    borderRadius: BorderRadius['2xl'],
+    backgroundColor: Colors.neutral[150],
   },
   avatarCompact: {
     width: 48,
     height: 48,
+    borderRadius: BorderRadius.xl,
   },
   verifiedBadge: {
     position: 'absolute',
-    bottom: 0,
+    bottom: -2,
     right: -2,
     backgroundColor: Colors.white,
     borderRadius: BorderRadius.full,
@@ -179,10 +183,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 2,
     right: 2,
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.success.main,
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    backgroundColor: Colors.sage.main,
     borderWidth: 2,
     borderColor: Colors.white,
   },
@@ -198,33 +202,34 @@ const styles = StyleSheet.create({
   name: {
     flex: 1,
     fontSize: Typography.fontSize.md,
-    fontFamily: Typography.fontFamily.semiBold,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.neutral[900],
+    letterSpacing: -0.2,
   },
   specialty: {
     fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
+    fontFamily: Typography.fontFamily.semiBold,
     color: Colors.primary[600],
     marginBottom: 2,
   },
   hospital: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
+    fontFamily: Typography.fontFamily.medium,
     color: Colors.neutral[500],
     marginBottom: Spacing[2],
   },
 
   // Available pill
   availablePill: {
-    backgroundColor: Colors.success.light,
+    backgroundColor: Colors.sage.light,
     paddingHorizontal: Spacing[2],
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
   },
   availableText: {
     fontSize: 10,
-    fontFamily: Typography.fontFamily.semiBold,
-    color: Colors.success.dark,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.sage.dark,
   },
 
   // Stats
@@ -238,8 +243,8 @@ const styles = StyleSheet.create({
   stat: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   statText: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
-    color: Colors.neutral[700],
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.neutral[800],
   },
   statSub: {
     fontSize: Typography.fontSize.xs,
@@ -260,28 +265,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 3,
     backgroundColor: Colors.primary[50],
-    paddingHorizontal: 7,
+    paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: BorderRadius.full,
   },
   chipText: {
     fontSize: 10,
-    fontFamily: Typography.fontFamily.medium,
+    fontFamily: Typography.fontFamily.semiBold,
     color: Colors.primary[700],
   },
 
   // Book button
   bookBtn: {
     backgroundColor: Colors.primary[500],
-    paddingHorizontal: Spacing[3],
+    paddingHorizontal: Spacing[4],
     paddingVertical: Spacing[2],
-    borderRadius: BorderRadius.lg,
-    alignSelf: 'flex-end',
+    borderRadius: BorderRadius.full,
+    alignSelf: 'center',
     marginLeft: Spacing[2],
+    ...Shadows.card,
   },
   bookBtnText: {
     fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.semiBold,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.white,
   },
 });

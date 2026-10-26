@@ -1,13 +1,9 @@
-/**
- * SymptomTriageScreen – AI triage chat interface.
- * Users describe symptoms; the bot assesses severity and recommends action.
- */
-
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
-  StyleSheet, KeyboardAvoidingView, Platform, Animated,
+  StyleSheet, KeyboardAvoidingView, Platform, Modal, Alert,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,10 +13,17 @@ import { HomeStackParamList, ChatMessage } from '../../types';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme';
 import ChatMessageBubble from '../../components/ChatMessage';
 import { calculateTriage } from '../../utils/helpers';
-import { TRIAGE_BOT_RESPONSES } from '../../data/mockData';
+import { TriageService } from '../../services/api';
 import { i18n } from '../../localization/i18n';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList, 'SymptomTriage'>;
+
+interface TriageResult {
+  severity: 'low' | 'moderate' | 'high' | 'critical';
+  recommendation: string;
+  suggestedSpecialty?: string;
+  shouldCallEmergency: boolean;
+}
 
 const SEVERITY_COLORS = {
   low:      Colors.success.main,
@@ -34,7 +37,7 @@ const INITIAL_BOT_MESSAGE: ChatMessage = {
   senderId: 'bot',
   senderName: 'MediBot',
   senderType: 'bot',
-  content: 'Hello! I\'m MediBot, your health assistant. Please describe your symptoms and I\'ll help assess the urgency of your situation. How are you feeling today?',
+  content: 'Hello! I\'m MediBot, your clinical health assistant. Please describe your symptoms or medical questions. (Strict safety guardrails active: only medical/health inquiries are answered).',
   type: 'text',
   timestamp: new Date().toISOString(),
   isRead: true,
@@ -47,7 +50,34 @@ const SymptomTriageScreen: React.FC = () => {
   const [messages, setMessages]   = useState<ChatMessage[]>([INITIAL_BOT_MESSAGE]);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping]   = useState(false);
-  const [triageResult, setTriageResult] = useState<ReturnType<typeof calculateTriage> | null>(null);
+  const [triageResult, setTriageResult] = useState<TriageResult | null>(null);
+
+  // API Key management
+  const [apiKey, setApiKey] = useState<string>('');
+  const [isKeyModalVisible, setIsKeyModalVisible] = useState(false);
+  const [tempKeyInput, setTempKeyInput] = useState('');
+
+  useEffect(() => {
+    AsyncStorage.getItem('@mediconnect_ai_api_key').then(stored => {
+      if (stored) {
+        setApiKey(stored);
+        setTempKeyInput(stored);
+      }
+    });
+  }, []);
+
+  const handleSaveApiKey = async () => {
+    const trimmed = tempKeyInput.trim();
+    setApiKey(trimmed);
+    if (trimmed) {
+      await AsyncStorage.setItem('@mediconnect_ai_api_key', trimmed);
+      Alert.alert('AI Key Saved', 'MediBot is now linked to your custom Gemini AI key with strict medical safety guardrails.');
+    } else {
+      await AsyncStorage.removeItem('@mediconnect_ai_api_key');
+      Alert.alert('Reset', 'Reverted to clinical rule triage engine.');
+    }
+    setIsKeyModalVisible(false);
+  };
 
   const sendMessage = useCallback(async () => {
     const text = inputText.trim();
@@ -69,39 +99,45 @@ const SymptomTriageScreen: React.FC = () => {
     setInputText('');
     setIsTyping(true);
 
-    // Simulate bot thinking
-    await new Promise(res => setTimeout(res, 1200));
+    // Call Backend Triage API with custom API key and safety guardrails
+    try {
+      const assessment = await TriageService.assessSymptoms(text, apiKey);
+      setTriageResult({
+        severity: assessment.severity,
+        recommendation: assessment.recommendation,
+        suggestedSpecialty: assessment.suggestedSpecialty,
+        shouldCallEmergency: assessment.shouldCallEmergency,
+      });
 
-    // Find a matching response
-    const lower = text.toLowerCase();
-    const matched = TRIAGE_BOT_RESPONSES.find(r =>
-      r.trigger.some(t => lower.includes(t))
-    );
+      const botMsg: ChatMessage = {
+        id: `bot-${Date.now()}`,
+        senderId: 'bot',
+        senderName: 'MediBot',
+        senderType: 'bot',
+        content: assessment.botReply,
+        type: 'text',
+        timestamp: new Date().toISOString(),
+        isRead: true,
+      };
 
-    // Calculate triage
-    const triage = calculateTriage(text);
-    setTriageResult(triage);
-
-    const botResponse =
-      matched?.response ??
-      `Thank you for sharing that. Based on what you've described, I'd assess this as a **${triage.severity}** severity situation. ${triage.recommendation}`;
-
-    const botMsg: ChatMessage = {
-      id: `bot-${Date.now()}`,
-      senderId: 'bot',
-      senderName: 'MediBot',
-      senderType: 'bot',
-      content: botResponse,
-      type: 'text',
-      timestamp: new Date().toISOString(),
-      isRead: true,
-    };
-
-    setIsTyping(false);
-    setMessages(prev => [...prev, botMsg]);
-
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [inputText]);
+      setMessages(prev => [...prev, botMsg]);
+    } catch (err: any) {
+      const errorMsg: ChatMessage = {
+        id: `bot-err-${Date.now()}`,
+        senderId: 'bot',
+        senderName: 'MediBot',
+        senderType: 'bot',
+        content: `⚠️ Server Error: ${err.message || 'Unable to connect to clinical assessment server.'} Please try again.`,
+        type: 'text',
+        timestamp: new Date().toISOString(),
+        isRead: true,
+      };
+      setMessages(prev => [...prev, errorMsg]);
+    } finally {
+      setIsTyping(false);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    }
+  }, [inputText, apiKey]);
 
   const handleEmergency = () => navigation.navigate('Emergency');
   const handleFindDoctor = () => navigation.navigate('DoctorList', {});
@@ -124,14 +160,35 @@ const SymptomTriageScreen: React.FC = () => {
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={22} color={Colors.white} />
         </TouchableOpacity>
-        <View>
+        <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>{i18n.t('triage.title')}</Text>
-          <Text style={styles.headerSub}>{i18n.t('triage.subtitle')}</Text>
+          <Text style={styles.headerSub}>
+            {apiKey ? '⚡ Gemini AI Active (Medical Only)' : 'Clinical Rule Engine (Medical Only)'}
+          </Text>
         </View>
+
+        {/* AI Key Configuration Button */}
+        <TouchableOpacity
+          style={styles.keyBtn}
+          onPress={() => setIsKeyModalVisible(true)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="key" size={16} color={apiKey ? '#F59E0B' : Colors.white} />
+          {apiKey ? <View style={styles.activeDot} /> : null}
+        </TouchableOpacity>
+
         <View style={styles.botIndicator}>
-          <Ionicons name="medkit" size={22} color={Colors.white} />
+          <Ionicons name="medkit" size={20} color={Colors.white} />
         </View>
       </LinearGradient>
+
+      {/* Safety Guardrail Notice Bar */}
+      <View style={styles.guardrailBanner}>
+        <Ionicons name="shield-checkmark" size={14} color={Colors.primary[700]} />
+        <Text style={styles.guardrailText}>
+          Strict Medical Guardrails Enabled • Non-medical queries will be declined
+        </Text>
+      </View>
 
       {/* Triage result banner */}
       {triageResult && (
@@ -162,7 +219,7 @@ const SymptomTriageScreen: React.FC = () => {
       <FlatList
         ref={listRef}
         data={messages}
-        keyExtractor={item => item.id}
+        keyExtractor={(item: ChatMessage) => item.id}
         renderItem={renderMessage}
         contentContainerStyle={styles.messageList}
         showsVerticalScrollIndicator={false}
@@ -204,6 +261,66 @@ const SymptomTriageScreen: React.FC = () => {
           <Ionicons name="send" size={18} color={Colors.white} />
         </TouchableOpacity>
       </View>
+      {/* API Key Configuration Modal */}
+      <Modal
+        visible={isKeyModalVisible}
+        animationType="fade"
+        transparent={true}
+        onRequestClose={() => setIsKeyModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.keyModalCard}>
+            <View style={styles.keyModalHeader}>
+              <View style={styles.keyIconWrap}>
+                <Ionicons name="key" size={20} color={Colors.primary[600]} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.keyModalTitle}>MediBot AI API Key</Text>
+                <Text style={styles.keyModalSub}>Configure Google Gemini AI for triage</Text>
+              </View>
+              <TouchableOpacity onPress={() => setIsKeyModalVisible(false)}>
+                <Ionicons name="close" size={20} color={Colors.neutral[600]} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.keyNotice}>
+              <Ionicons name="shield-checkmark" size={16} color={Colors.primary[600]} />
+              <Text style={styles.keyNoticeText}>
+                Safety Guardrails Active: MediBot will strictly decline non-medical questions (code, politics, chit-chat) and only provide clinical health triage.
+              </Text>
+            </View>
+
+            <Text style={styles.keyInputLabel}>Gemini API Key</Text>
+            <TextInput
+              style={styles.keyInput}
+              placeholder="AIzaSy..."
+              placeholderTextColor={Colors.neutral[400]}
+              value={tempKeyInput}
+              onChangeText={setTempKeyInput}
+              autoCapitalize="none"
+              autoCorrect={false}
+              secureTextEntry={false}
+            />
+
+            <View style={styles.keyActionRow}>
+              <TouchableOpacity
+                style={styles.keyResetBtn}
+                onPress={() => {
+                  setTempKeyInput('');
+                }}
+              >
+                <Text style={styles.keyResetText}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.keySaveBtn}
+                onPress={handleSaveApiKey}
+              >
+                <Text style={styles.keySaveText}>Save API Key</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 };
@@ -221,15 +338,50 @@ const styles = StyleSheet.create({
   },
   backBtn: {},
   headerTitle: { fontSize: Typography.fontSize.lg, fontFamily: Typography.fontFamily.bold, color: Colors.white },
-  headerSub: { fontSize: Typography.fontSize.xs, fontFamily: Typography.fontFamily.regular, color: 'rgba(255,255,255,0.7)' },
+  headerSub: { fontSize: 11, fontFamily: Typography.fontFamily.medium, color: 'rgba(255,255,255,0.85)', marginTop: 2 },
+  keyBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  activeDot: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+    borderWidth: 1.5,
+    borderColor: Colors.white,
+  },
   botIndicator: {
-    width: 40,
-    height: 40,
+    width: 36,
+    height: 36,
     borderRadius: BorderRadius.full,
     backgroundColor: 'rgba(255,255,255,0.15)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 'auto',
+  },
+  guardrailBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    backgroundColor: Colors.primary[50],
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.primary[100],
+  },
+  guardrailText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primary[800],
+    flex: 1,
   },
 
   // Result banner
@@ -295,6 +447,115 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnDisabled: { backgroundColor: Colors.neutral[300] },
+
+  // Key Modal styles
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: Spacing[4],
+  },
+  keyModalCard: {
+    width: '100%',
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing[5],
+    ...Shadows.lg,
+  },
+  keyModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+    marginBottom: Spacing[4],
+  },
+  keyIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  keyModalTitle: {
+    fontSize: Typography.fontSize.base,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.neutral[900],
+  },
+  keyModalSub: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[500],
+    marginTop: 2,
+  },
+  keyNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing[2],
+    backgroundColor: Colors.primary[50],
+    borderRadius: BorderRadius.xl,
+    padding: Spacing[3],
+    marginBottom: Spacing[4],
+    borderWidth: 1,
+    borderColor: Colors.primary[100],
+  },
+  keyNoticeText: {
+    flex: 1,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primary[900],
+    lineHeight: 16,
+  },
+  keyInputLabel: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.neutral[700],
+    marginBottom: Spacing[2],
+  },
+  keyInput: {
+    backgroundColor: Colors.neutral[50],
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[200],
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[3],
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[900],
+    marginBottom: Spacing[5],
+  },
+  keyActionRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: Spacing[3],
+  },
+  keyResetBtn: {
+    paddingVertical: Spacing[2],
+    paddingHorizontal: Spacing[4],
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.neutral[300],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  keyResetText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[600],
+  },
+  keySaveBtn: {
+    paddingVertical: Spacing[2],
+    paddingHorizontal: Spacing[5],
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.primary[500],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  keySaveText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.white,
+  },
 });
 
 export default SymptomTriageScreen;

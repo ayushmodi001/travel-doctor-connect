@@ -130,10 +130,12 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     backgroundColor: Colors.white,
-    borderRadius: BorderRadius.xl,
+    borderRadius: BorderRadius['2xl'],
     marginBottom: Spacing[3],
     overflow: 'hidden',
-    ...Shadows.md,
+    borderWidth: 1,
+    borderColor: Colors.neutral[100],
+    ...Shadows.sm,
   },
   accentBar: {
     width: 4,
@@ -153,31 +155,32 @@ const styles = StyleSheet.create({
   avatar: {
     width: 48,
     height: 48,
-    borderRadius: BorderRadius.full,
+    borderRadius: BorderRadius.xl,
     backgroundColor: Colors.neutral[100],
   },
   doctorInfo: { flex: 1 },
   doctorName: {
     fontSize: Typography.fontSize.base,
-    fontFamily: Typography.fontFamily.semiBold,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.neutral[900],
+    letterSpacing: -0.2,
   },
   specialty: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.regular,
-    color: Colors.neutral[500],
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primary[600],
     marginTop: 2,
   },
 
   // Badge
   badge: {
-    paddingHorizontal: Spacing[2],
+    paddingHorizontal: Spacing[3],
     paddingVertical: 4,
     borderRadius: BorderRadius.full,
   },
   badgeText: {
     fontSize: 11,
-    fontFamily: Typography.fontFamily.semiBold,
+    fontFamily: Typography.fontFamily.bold,
   },
 
   // Divider
@@ -197,10 +200,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
+    backgroundColor: Colors.neutral[50],
+    paddingHorizontal: Spacing[2],
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
   },
   detailText: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
+    fontFamily: Typography.fontFamily.semiBold,
     color: Colors.neutral[600],
   },
 
@@ -217,24 +224,26 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary[500],
     paddingHorizontal: Spacing[4],
     paddingVertical: Spacing[2],
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.full,
+    ...Shadows.iris,
   },
   joinBtnText: {
     fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.semiBold,
+    fontFamily: Typography.fontFamily.bold,
     color: Colors.white,
   },
   cancelBtn: {
-    paddingHorizontal: Spacing[3],
+    paddingHorizontal: Spacing[4],
     paddingVertical: Spacing[2],
-    borderRadius: BorderRadius.lg,
+    borderRadius: BorderRadius.full,
     borderWidth: 1,
-    borderColor: Colors.neutral[200],
+    borderColor: Colors.coral.light,
+    backgroundColor: Colors.coral[50],
   },
   cancelBtnText: {
     fontSize: Typography.fontSize.sm,
-    fontFamily: Typography.fontFamily.medium,
-    color: Colors.neutral[600],
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.coral.dark,
   },
 });
 

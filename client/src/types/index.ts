@@ -80,6 +80,7 @@ export interface Appointment {
   status: AppointmentStatus;
   symptoms?: string;
   notes?: string;
+  reason?: string;
   prescription?: string;
   createdAt: string;
   videoCallToken?: string;
@@ -161,6 +162,77 @@ export interface Address {
   postalCode: string;
 }
 
+// ─── International Travel Companion ──────────────────────────────────────────
+
+export interface DestinationCountry {
+  code: string; // 'ES', 'JP', 'FR', 'GB', 'DE', 'US', 'TH', 'IN', 'IT'
+  name: string;
+  flag: string;
+  capital: string;
+  currency: string;
+  currencySymbol: string;
+  primaryLanguage: string;
+  emergencyNumbers: {
+    general: string;
+    ambulance: string;
+    police: string;
+    fire: string;
+  };
+  embassySupport: {
+    title: string;
+    phone: string;
+    address: string;
+  };
+  healthAdvisories: {
+    waterSafety: 'safe' | 'bottled_recommended' | 'boil_required';
+    malariaRisk: 'none' | 'low' | 'moderate' | 'high';
+    requiredVaccines: string[];
+    recommendedVaccines: string[];
+    currentAlert?: string;
+  };
+}
+
+export interface MedicalPhrase {
+  id: string;
+  category: 'emergency' | 'symptoms' | 'pharmacy' | 'allergies' | 'doctor';
+  english: string;
+  translation: string;
+  phonetic: string;
+  language: string;
+  languageCode: string;
+  flag: string;
+}
+
+export interface MedicineEquivalent {
+  id: string;
+  genericName: string;
+  primaryUse: string;
+  commonHomeBrands: string[];
+  brandsByCountry: {
+    US: string;
+    UK: string;
+    FR: string;
+    ES: string;
+    DE: string;
+    JP: string;
+  };
+  customsRestrictions: {
+    isRestricted: boolean;
+    warningNote?: string;
+  };
+  otcAvailability: string; // e.g., 'OTC in most countries', 'Prescription required in Japan'
+}
+
+export interface TravelInsurancePolicy {
+  provider: string;
+  policyNumber: string;
+  insuredName: string;
+  coverageLimit: string;
+  emergencyAssistancePhone: string;
+  validUntil: string;
+  claimChecklist: string[];
+}
+
 // ─── Navigation ───────────────────────────────────────────────────────────────
 
 export type RootStackParamList = {
@@ -169,6 +241,7 @@ export type RootStackParamList = {
 };
 
 export type AuthStackParamList = {
+  GetStarted: undefined;
   Login: undefined;
   Signup: undefined;
   ForgotPassword: undefined;
@@ -176,6 +249,8 @@ export type AuthStackParamList = {
 
 export type MainTabParamList = {
   HomeTab: undefined;
+  TravelTab: undefined;
+  MapsTab: undefined;
   AppointmentsTab: undefined;
   ProfileTab: undefined;
 };
@@ -189,11 +264,34 @@ export type HomeStackParamList = {
   Chat: { sessionId: string; doctorId: string };
   VideoCall: { appointmentId: string; token: string };
   Emergency: undefined;
+  OpenMaps: { initialCategory?: string; doctorId?: string; latitude?: number; longitude?: number } | undefined;
+  TravelHub: undefined;
+  MedicalTranslator: { initialCategory?: string } | undefined;
+  MedicineEquivalents: undefined;
+  TravelInsurance: undefined;
+  AdminDoctorPanel: undefined;
+};
+
+export type TravelStackParamList = {
+  TravelHub: undefined;
+  MedicalTranslator: { initialCategory?: string; initialLanguage?: string } | undefined;
+  MedicineEquivalents: undefined;
+  TravelInsurance: undefined;
+  DoctorList: { specialty?: string; consultationType?: ConsultationType };
+  OpenMaps: { initialCategory?: string; doctorId?: string; latitude?: number; longitude?: number } | undefined;
+};
+
+export type MapsStackParamList = {
+  MapsView: { initialCategory?: string; doctorId?: string; latitude?: number; longitude?: number } | undefined;
+  DoctorProfile: { doctorId: string };
+  BookAppointment: { doctorId: string; slotId?: string };
 };
 
 export type AppointmentsStackParamList = {
   Appointments: undefined;
   AppointmentDetail: { appointmentId: string };
+  VideoCall: { appointmentId: string; token: string };
+  DoctorProfile: { doctorId: string };
 };
 
 export type ProfileStackParamList = {
@@ -201,6 +299,8 @@ export type ProfileStackParamList = {
   EditProfile: undefined;
   Settings: undefined;
   MedicalHistory: undefined;
+  TravelInsurance: undefined;
+  AdminDoctorPanel: undefined;
 };
 
 // ─── Filter ──────────────────────────────────────────────────────────────────

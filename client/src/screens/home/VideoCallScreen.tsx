@@ -3,20 +3,21 @@
  * In production integrate Twilio Video or WebRTC.
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar, Animated,
+  SafeAreaView, StatusBar, Animated, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
-import { HomeStackParamList } from '../../types';
+import { HomeStackParamList, Appointment } from '../../types';
 import { Colors, Typography, Spacing, BorderRadius } from '../../theme';
 import { Avatar } from '../../components/ui/primitives';
-import { MOCK_APPOINTMENTS } from '../../data/mockData';
+import { ErrorState } from '../../components/ui/ErrorState';
+import { AppointmentService } from '../../services/api';
 
 type NavProp   = NativeStackNavigationProp<HomeStackParamList, 'VideoCall'>;
 type RouteType = RouteProp<HomeStackParamList, 'VideoCall'>;
@@ -26,8 +27,9 @@ const VideoCallScreen: React.FC = () => {
   const route      = useRoute<RouteType>();
   const { appointmentId } = route.params;
 
-  const appointment = MOCK_APPOINTMENTS.find(a => a.id === appointmentId);
-  const doctor      = appointment?.doctor;
+  const [appointment, setAppointment] = useState<Appointment | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [callDuration, setCallDuration] = useState(0);
   const [isMuted, setIsMuted]           = useState(false);
@@ -37,11 +39,33 @@ const VideoCallScreen: React.FC = () => {
 
   const pulseAnim = new Animated.Value(1);
 
+  const loadAppointment = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    try {
+      const data = await AppointmentService.getAppointmentById(appointmentId);
+      setAppointment(data);
+    } catch (err: any) {
+      setError(err.message || 'Unable to connect to telemedicine video channel.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [appointmentId]);
+
+  useEffect(() => {
+    loadAppointment();
+  }, [loadAppointment]);
+
+  const doctorName = appointment?.doctor?.name || 'Dr. Mitchell';
+  const doctorImage = appointment?.doctor?.profileImage;
+  const doctorSpecialty = appointment?.doctor?.specialty || 'Consultant';
+
   // Simulate connection
   useEffect(() => {
+    if (!appointment) return;
     const timer = setTimeout(() => setCallStatus('active'), 2500);
     return () => clearTimeout(timer);
-  }, []);
+  }, [appointment]);
 
   // Call timer
   useEffect(() => {
@@ -61,7 +85,7 @@ const VideoCallScreen: React.FC = () => {
     );
     animation.start();
     return () => animation.stop();
-  }, [callStatus]);
+  }, [callStatus, pulseAnim]);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -73,6 +97,27 @@ const VideoCallScreen: React.FC = () => {
     setCallStatus('ended');
     setTimeout(() => navigation.goBack(), 1500);
   };
+
+  if (isLoading) {
+    return (
+      <SafeAreaView style={[styles.container, { alignItems: 'center', justifyContent: 'center' }]}>
+        <ActivityIndicator size="large" color={Colors.white} />
+        <Text style={{ color: Colors.white, marginTop: 12 }}>Preparing secure consultation room…</Text>
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !appointment) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ErrorState
+          title="Consultation Unavailable"
+          message={error || 'Appointment record not found.'}
+          onRetry={loadAppointment}
+        />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -86,12 +131,12 @@ const VideoCallScreen: React.FC = () => {
           <View style={styles.overlay}>
             <Animated.View style={[styles.avatarPulse, { transform: [{ scale: pulseAnim }] }]}>
               <Avatar
-                uri={doctor?.profileImage}
-                name={doctor?.name}
+                uri={doctorImage}
+                name={doctorName}
                 size={100}
               />
             </Animated.View>
-            <Text style={styles.overlayName}>{doctor?.name ?? 'Doctor'}</Text>
+            <Text style={styles.overlayName}>{doctorName}</Text>
             <Text style={styles.overlayStatus}>
               {callStatus === 'connecting' ? 'Connecting…' : 'Call Ended'}
             </Text>
@@ -104,7 +149,7 @@ const VideoCallScreen: React.FC = () => {
             <Ionicons name="chevron-down" size={24} color={Colors.white} />
           </TouchableOpacity>
           <View style={styles.callInfo}>
-            <Text style={styles.calleeName}>{doctor?.name ?? 'Doctor'}</Text>
+            <Text style={styles.calleeName}>{doctorName}</Text>
             <Text style={styles.callDuration}>
               {callStatus === 'active' ? formatDuration(callDuration) :
                callStatus === 'connecting' ? 'Connecting…' : 'Ended'}

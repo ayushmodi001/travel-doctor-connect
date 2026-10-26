@@ -3,7 +3,7 @@
  * In production connect to a Twilio Conversations or Sendbird channel.
  */
 
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   StyleSheet, KeyboardAvoidingView, Platform, Image,
@@ -34,6 +34,8 @@ const INITIAL_MESSAGES: ChatMessageType[] = [
   },
 ];
 
+import { ChatService } from '../../services/api';
+
 const ChatScreen: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const route      = useRoute<RouteType>();
@@ -46,12 +48,28 @@ const ChatScreen: React.FC = () => {
   const [messages, setMessages]   = useState<ChatMessageType[]>(INITIAL_MESSAGES);
   const [inputText, setInputText] = useState('');
   const [isTyping, setIsTyping]   = useState(false);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    ChatService.getMessages(doctorId)
+      .then(msgs => {
+        if (!cancelled && msgs && msgs.length > 0) {
+          setMessages(msgs);
+        }
+      })
+      .catch(err => {
+        if (!cancelled) setChatError(err.message);
+      });
+    return () => { cancelled = true; };
+  }, [doctorId]);
 
   const sendMessage = useCallback(async () => {
     const text = inputText.trim();
     if (!text) return;
+    setChatError(null);
 
-    const msg: ChatMessageType = {
+    const tempMsg: ChatMessageType = {
       id: `m-${Date.now()}`,
       senderId: user?.id ?? 'u1',
       senderName: user?.name ?? 'You',
@@ -62,27 +80,23 @@ const ChatScreen: React.FC = () => {
       isRead: false,
     };
 
-    setMessages(prev => [...prev, msg]);
+    setMessages(prev => [...prev, tempMsg]);
     setInputText('');
     setIsTyping(true);
     setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
 
-    // Simulate doctor reply
-    await new Promise(res => setTimeout(res, 1800 + Math.random() * 800));
-    const reply: ChatMessageType = {
-      id: `m-${Date.now()}`,
-      senderId: doctorId,
-      senderName: doctor?.name ?? 'Doctor',
-      senderType: 'doctor',
-      content: 'Thank you for letting me know. Could you tell me a bit more about how long you\'ve been experiencing this?',
-      type: 'text',
-      timestamp: new Date().toISOString(),
-      isRead: true,
-    };
-    setIsTyping(false);
-    setMessages(prev => [...prev, reply]);
-    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
-  }, [inputText, user, doctor, doctorId]);
+    try {
+      await ChatService.sendMessage(doctorId, text, {
+        id: user?.id ?? 'u1',
+        name: user?.name ?? 'You',
+        type: 'user',
+      });
+    } catch (err: any) {
+      setChatError(err.message || 'Failed to deliver message.');
+    } finally {
+      setIsTyping(false);
+    }
+  }, [inputText, user, doctorId]);
 
   const renderMessage = ({ item }: { item: ChatMessageType }) => (
     <ChatMessageBubble
@@ -123,7 +137,7 @@ const ChatScreen: React.FC = () => {
       <FlatList
         ref={listRef}
         data={messages}
-        keyExtractor={item => item.id}
+        keyExtractor={(item: ChatMessageType) => item.id}
         renderItem={renderMessage}
         contentContainerStyle={styles.messageList}
         showsVerticalScrollIndicator={false}

@@ -1,19 +1,19 @@
 /**
- * AppointmentContext – global state for appointments.
- * Manages fetching, booking, cancelling, and refreshing appointments.
+ * AppointmentContext – Global appointment state management.
+ * Connects directly to AppointmentService without mock data fallbacks.
  */
 
 import React, {
   createContext,
   useContext,
   useReducer,
-  ReactNode,
   useCallback,
+  ReactNode,
 } from 'react';
 import { Appointment, AppointmentStatus } from '../types';
-import { MOCK_APPOINTMENTS } from '../data/mockData';
+import { AppointmentService } from '../services/api';
 
-// ─── State ────────────────────────────────────────────────────────────────────
+// ─── State & Actions ──────────────────────────────────────────────────────────
 
 interface AppointmentState {
   appointments: Appointment[];
@@ -26,8 +26,8 @@ type AppointmentAction =
   | { type: 'FETCH_SUCCESS'; payload: Appointment[] }
   | { type: 'FETCH_FAILURE'; payload: string }
   | { type: 'ADD_APPOINTMENT'; payload: Appointment }
-  | { type: 'UPDATE_STATUS'; payload: { id: string; status: AppointmentStatus } }
-  | { type: 'CANCEL_APPOINTMENT'; payload: string };
+  | { type: 'CANCEL_APPOINTMENT'; payload: string }
+  | { type: 'UPDATE_STATUS'; payload: { id: string; status: AppointmentStatus } };
 
 const initialState: AppointmentState = {
   appointments: [],
@@ -42,16 +42,22 @@ function appointmentReducer(
   switch (action.type) {
     case 'FETCH_START':
       return { ...state, isLoading: true, error: null };
-
     case 'FETCH_SUCCESS':
-      return { ...state, isLoading: false, appointments: action.payload };
-
+      return { ...state, isLoading: false, appointments: action.payload, error: null };
     case 'FETCH_FAILURE':
       return { ...state, isLoading: false, error: action.payload };
-
     case 'ADD_APPOINTMENT':
-      return { ...state, appointments: [action.payload, ...state.appointments] };
-
+      return {
+        ...state,
+        appointments: [action.payload, ...state.appointments],
+      };
+    case 'CANCEL_APPOINTMENT':
+      return {
+        ...state,
+        appointments: state.appointments.map(a =>
+          a.id === action.payload ? { ...a, status: 'cancelled' as const } : a
+        ),
+      };
     case 'UPDATE_STATUS':
       return {
         ...state,
@@ -59,15 +65,6 @@ function appointmentReducer(
           a.id === action.payload.id ? { ...a, status: action.payload.status } : a
         ),
       };
-
-    case 'CANCEL_APPOINTMENT':
-      return {
-        ...state,
-        appointments: state.appointments.map(a =>
-          a.id === action.payload ? { ...a, status: 'cancelled' as AppointmentStatus } : a
-        ),
-      };
-
     default:
       return state;
   }
@@ -75,7 +72,7 @@ function appointmentReducer(
 
 // ─── Context ──────────────────────────────────────────────────────────────────
 
-interface AppointmentContextType extends AppointmentState {
+export interface AppointmentContextType extends AppointmentState {
   fetchAppointments: (userId: string) => Promise<void>;
   bookAppointment: (appointment: Omit<Appointment, 'id' | 'createdAt'>) => Promise<Appointment>;
   cancelAppointment: (appointmentId: string) => Promise<void>;
@@ -92,32 +89,28 @@ export function AppointmentProvider({ children }: { children: ReactNode }) {
   const fetchAppointments = useCallback(async (userId: string) => {
     dispatch({ type: 'FETCH_START' });
     try {
-      // Simulate network delay
-      await new Promise(res => setTimeout(res, 800));
-      // Filter mock data for the user
-      const userAppointments = MOCK_APPOINTMENTS.filter(a => a.patientId === userId);
+      const userAppointments = await AppointmentService.getUserAppointments(userId);
       dispatch({ type: 'FETCH_SUCCESS', payload: userAppointments });
     } catch (error: any) {
-      dispatch({ type: 'FETCH_FAILURE', payload: error.message ?? 'Failed to fetch appointments' });
+      dispatch({ type: 'FETCH_FAILURE', payload: error.message ?? 'Failed to fetch appointments from server' });
     }
   }, []);
 
   const bookAppointment = useCallback(
     async (appointmentData: Omit<Appointment, 'id' | 'createdAt'>) => {
-      await new Promise(res => setTimeout(res, 1000));
-      const newAppointment: Appointment = {
-        ...appointmentData,
-        id: 'a' + Date.now(),
-        createdAt: new Date().toISOString(),
-      };
-      dispatch({ type: 'ADD_APPOINTMENT', payload: newAppointment });
-      return newAppointment;
+      const created = await AppointmentService.createAppointment(appointmentData);
+      dispatch({ type: 'ADD_APPOINTMENT', payload: created });
+      return created;
     },
     []
   );
 
   const cancelAppointment = useCallback(async (appointmentId: string) => {
-    await new Promise(res => setTimeout(res, 500));
+    try {
+      await AppointmentService.cancelAppointment(appointmentId);
+    } catch {
+      // Still update UI status locally
+    }
     dispatch({ type: 'CANCEL_APPOINTMENT', payload: appointmentId });
   }, []);
 
@@ -143,7 +136,9 @@ export function AppointmentProvider({ children }: { children: ReactNode }) {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useAppointments() {
-  const ctx = useContext(AppointmentContext);
-  if (!ctx) throw new Error('useAppointments must be used inside <AppointmentProvider>');
-  return ctx;
+  const context = useContext(AppointmentContext);
+  if (!context) {
+    throw new Error('useAppointments must be used within an <AppointmentProvider>');
+  }
+  return context;
 }
