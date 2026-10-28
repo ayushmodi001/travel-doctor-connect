@@ -96,7 +96,13 @@ function authReducer(state: AuthState, action: AuthAction): AuthState {
 
 export interface AuthContextType extends AuthState {
   login: (email: string, password: string) => Promise<void>;
-  signup: (name: string, email: string, password: string, phone: string) => Promise<void>;
+  signup: (
+    name: string,
+    email: string,
+    password: string,
+    phone: string,
+    profileExtra?: Partial<User>
+  ) => Promise<void>;
   logout: () => Promise<void>;
   updateProfile: (data: Partial<User>) => void;
   clearError: () => void;
@@ -201,15 +207,9 @@ function ClerkSyncBridge({ children, onSync, onLogoutRef }: ClerkSyncBridgeProps
           phone: phone ?? storedProfile.phone,
           profileImage: clerkUser.imageUrl || storedProfile.profileImage,
           bloodGroup: storedProfile.bloodGroup || 'O+',
-          medicalHistory: storedProfile.medicalHistory || [
-            'Allergies (recorded via profile)',
-          ],
-          allergies: storedProfile.allergies || ['Seasonal'],
-          emergencyContact: storedProfile.emergencyContact || {
-            name: 'Emergency Contact',
-            phone: '+1-555-0199',
-            relation: 'Family',
-          },
+          medicalHistory: storedProfile.medicalHistory || [],
+          allergies: storedProfile.allergies || [],
+          emergencyContact: storedProfile.emergencyContact,
           createdAt:
             clerkUser.createdAt instanceof Date
               ? clerkUser.createdAt.toISOString()
@@ -345,7 +345,13 @@ export function AuthProvider({ children, isClerkEnabled = false }: AuthProviderP
   /**
    * Real signup via backend API when Clerk is not used.
    */
-  const signup = async (name: string, email: string, password: string, phone: string) => {
+  const signup = async (
+    name: string,
+    email: string,
+    password: string,
+    phone: string,
+    profileExtra?: Partial<User>
+  ) => {
     dispatch({ type: 'AUTH_START' });
     try {
       const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'http://localhost:5000/api'}/auth/register`, {
@@ -364,17 +370,27 @@ export function AuthProvider({ children, isClerkEnabled = false }: AuthProviderP
         email: json.data.user.email,
         name: json.data.user.name,
         phone,
-        bloodGroup: 'O+',
-        medicalHistory: [],
-        allergies: [],
+        bloodGroup: profileExtra?.bloodGroup || 'O+',
+        medicalHistory: profileExtra?.medicalHistory || [],
+        allergies: profileExtra?.allergies || [],
+        emergencyContact: profileExtra?.emergencyContact,
         createdAt: new Date().toISOString(),
+        ...profileExtra,
       };
       const token = json.data.token;
 
       await Promise.all([
         AsyncStorage.setItem(TOKEN_KEY, token),
         AsyncStorage.setItem(USER_KEY, JSON.stringify(newUser)),
+        AsyncStorage.setItem(USER_ID_KEY, newUser.id),
       ]);
+
+      // Sync user profile directly to database
+      try {
+        await UserService.syncUser(newUser);
+      } catch (syncErr: any) {
+        console.warn('Initial user profile sync warning:', syncErr.message);
+      }
 
       dispatch({ type: 'AUTH_SUCCESS', payload: { user: newUser, token } });
     } catch (error: any) {

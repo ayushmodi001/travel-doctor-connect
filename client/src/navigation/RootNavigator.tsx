@@ -57,7 +57,7 @@ import ProfileScreen from '../screens/profile/ProfileScreen';
 import EditProfileScreen from '../screens/profile/EditProfileScreen';
 import MedicalHistoryScreen from '../screens/profile/MedicalHistoryScreen';
 import SettingsScreen from '../screens/profile/SettingsScreen';
-import AdminDoctorPanelScreen from '../screens/admin/AdminDoctorPanelScreen';
+import FamilyTrackerScreen from '../screens/family/FamilyTrackerScreen';
 
 import { i18n } from '../localization/i18n';
 
@@ -105,7 +105,7 @@ function HomeNavigator() {
       <HomeStack.Screen name="Chat" component={ChatScreen} />
       <HomeStack.Screen name="VideoCall" component={VideoCallScreen} />
       <HomeStack.Screen name="Emergency" component={EmergencyScreen} />
-      <HomeStack.Screen name="AdminDoctorPanel" component={AdminDoctorPanelScreen} />
+      <HomeStack.Screen name="FamilyTracker" component={FamilyTrackerScreen} />
     </HomeStack.Navigator>
   );
 }
@@ -159,7 +159,7 @@ function ProfileNavigator() {
       <ProfileStack.Screen name="EditProfile" component={EditProfileScreen} />
       <ProfileStack.Screen name="MedicalHistory" component={MedicalHistoryScreen} />
       <ProfileStack.Screen name="TravelInsurance" component={TravelInsuranceScreen} />
-      <ProfileStack.Screen name="AdminDoctorPanel" component={AdminDoctorPanelScreen} />
+      <ProfileStack.Screen name="FamilyTracker" component={FamilyTrackerScreen} />
       <ProfileStack.Screen name="Settings" component={SettingsScreen} />
     </ProfileStack.Navigator>
   );

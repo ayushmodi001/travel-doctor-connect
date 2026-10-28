@@ -3,9 +3,11 @@
  * Provides destination country intelligence, instant local emergency EMS calling,
  * water/vaccine advisories, embassy support, and direct access to medical translator,
  * international medicine brand equivalents, and travel insurance assistance.
+ * 
+ * Powered by Gemini AI for real-time destination health intelligence.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -15,6 +17,10 @@ import {
   Linking,
   Alert,
   ActivityIndicator,
+  Modal,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
@@ -38,6 +44,12 @@ export default function TravelHubScreen() {
   const [detectedCountryCode, setDetectedCountryCode] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Gemini AI Destination Generator & Country Switcher Modal
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [aiCountryInput, setAiCountryInput] = useState('');
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
 
   // Helper to generate flag emoji from 2-letter ISO code
   const getFlagEmoji = (countryCode: string): string => {
@@ -81,38 +93,6 @@ export default function TravelHubScreen() {
             setActiveCountry(match);
             return match;
           }
-
-          // Build dynamic destination for traveler's detected country
-          const dynamicCountry: DestinationCountry = {
-            code: isoCode,
-            name: countryName,
-            flag: getFlagEmoji(isoCode),
-            capital: geocode[0].city || geocode[0].region || countryName,
-            currency: isoCode === 'IN' ? 'INR' : isoCode === 'US' ? 'USD' : isoCode === 'GB' ? 'GBP' : 'EUR',
-            currencySymbol: isoCode === 'IN' ? '₹' : isoCode === 'US' ? '$' : isoCode === 'GB' ? '£' : '€',
-            primaryLanguage: isoCode === 'IN' ? 'Hindi / English' : 'Local / English',
-            emergencyNumbers: {
-              general: isoCode === 'US' ? '911' : '112',
-              ambulance: isoCode === 'IN' ? '108' : isoCode === 'US' ? '911' : '112',
-              police: isoCode === 'IN' ? '100' : isoCode === 'US' ? '911' : '112',
-              fire: isoCode === 'IN' ? '101' : isoCode === 'US' ? '911' : '112',
-            },
-            embassySupport: {
-              title: 'Emergency Medical & Consular Services',
-              phone: '+1 888 407 4747',
-              address: `${geocode[0].city || 'Capital City'}, ${countryName}`,
-            },
-            healthAdvisories: {
-              waterSafety: isoCode === 'IN' ? 'bottled_recommended' : 'safe',
-              malariaRisk: isoCode === 'IN' ? 'low' : 'none',
-              requiredVaccines: ['None for general entry'],
-              recommendedVaccines: ['Routine vaccines'],
-              currentAlert: `Local Emergency Services: Dial ${isoCode === 'US' ? '911' : '112'} for immediate first responder assistance.`,
-            },
-          };
-
-          setActiveCountry(dynamicCountry);
-          return dynamicCountry;
         }
       }
     } catch (locErr) {
@@ -126,17 +106,21 @@ export default function TravelHubScreen() {
     setError(null);
     try {
       const data = await TravelService.getDestinationCountries();
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error('Travel destinations database is empty. Please generate real destinations using Gemini AI.');
+      }
       setCountries(data);
 
-      // Automatically detect and select GPS location by default
       const detected = await detectAndApplyUserLocation(data);
-      if (!detected && data.length > 0) {
+      if (detected) {
+        setActiveCountry(detected);
+      } else {
         setActiveCountry(data[0]);
-      } else if (!detected && data.length === 0) {
-        throw new Error('No destination countries returned from healthcare server.');
       }
     } catch (err: any) {
-      setError(err.message || 'Unable to connect to travel intelligence server.');
+      setCountries([]);
+      setActiveCountry(null);
+      setError(err.message || 'Travel database is empty. Please generate destination data using Gemini AI.');
     } finally {
       setIsLoading(false);
     }
@@ -146,6 +130,34 @@ export default function TravelHubScreen() {
     loadCountries();
   }, [loadCountries]);
 
+  // Handle Gemini AI dynamic country harvester
+  const handleGenerateWithGemini = async () => {
+    if (!aiCountryInput.trim()) {
+      Alert.alert('Enter Destination', 'Please type a country name or 2-letter country code (e.g., Greece, Norway, Egypt).');
+      return;
+    }
+
+    setIsGeneratingAI(true);
+    try {
+      const newCountry = await TravelService.generateDestinationAI(aiCountryInput.trim());
+      // Add or replace in countries list
+      setCountries(prev => {
+        const filtered = prev.filter(c => c.code.toUpperCase() !== newCountry.code.toUpperCase());
+        return [newCountry, ...filtered];
+      });
+      setActiveCountry(newCountry);
+      setAiCountryInput('');
+      setIsModalVisible(false);
+      Alert.alert(
+        '✨ Destination Generated with Gemini',
+        `Real-time health advisories, local EMS numbers, and embassy support loaded for ${newCountry.name} (${newCountry.flag})!`
+      );
+    } catch (genErr: any) {
+      Alert.alert('AI Generation Error', genErr.message || 'Failed to harvest intelligence with Gemini.');
+    } finally {
+      setIsGeneratingAI(false);
+    }
+  };
 
   const handleCallEmergency = (number: string, title: string) => {
     if (!activeCountry) return;
@@ -183,6 +195,14 @@ export default function TravelHubScreen() {
     );
   };
 
+  const filteredCountriesList = useMemo(() => {
+    if (!searchFilter.trim()) return countries;
+    const q = searchFilter.toLowerCase().trim();
+    return countries.filter(
+      c => c.name.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.capital.toLowerCase().includes(q)
+    );
+  }, [countries, searchFilter]);
+
   if (isLoading) {
     return (
       <View style={[styles.container, styles.centerContent, { paddingTop: insets.top }]}>
@@ -194,12 +214,84 @@ export default function TravelHubScreen() {
 
   if (error || !activeCountry) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={[styles.container, { paddingTop: insets.top, paddingHorizontal: Spacing[4] }]}>
         <ErrorState
-          title="Destination Intelligence Unavailable"
-          message={error || 'Unable to load destination data.'}
+          title="Travel Database Empty"
+          message={error || 'No destination intelligence found in database. Use Gemini AI to generate real destination data.'}
           onRetry={loadCountries}
         />
+        <TouchableOpacity
+          style={styles.emptyGenBtn}
+          onPress={() => setIsModalVisible(true)}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="sparkles" size={18} color={Colors.white} />
+          <Text style={styles.emptyGenBtnText}>Generate Destination with Gemini AI</Text>
+        </TouchableOpacity>
+
+        {/* Modal to allow generating destination even when DB is empty */}
+        <Modal
+          visible={isModalVisible}
+          animationType="slide"
+          transparent={true}
+          onRequestClose={() => setIsModalVisible(false)}
+        >
+          <KeyboardAvoidingView
+            style={styles.modalOverlay}
+            behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          >
+            <View style={styles.modalSheet}>
+              <View style={styles.modalHeader}>
+                <View>
+                  <Text style={styles.modalTitle}>Generate Destination with Gemini</Text>
+                  <Text style={styles.modalSubtitle}>Query Gemini AI to harvest verified travel intelligence</Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setIsModalVisible(false)}
+                  style={styles.modalCloseBtn}
+                >
+                  <Ionicons name="close" size={20} color={Colors.neutral[700]} />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.aiGeneratorCard}>
+                <View style={styles.aiBadgeRow}>
+                  <Ionicons name="sparkles" size={14} color="#7C3AED" />
+                  <Text style={styles.aiBadgeText}>GEMINI AI TRAVEL INTELLIGENCE</Text>
+                </View>
+                <Text style={styles.aiCardDesc}>
+                  Type any destination in the world to automatically generate local EMS numbers, vaccine advisories, and embassy care:
+                </Text>
+                <View style={styles.aiInputRow}>
+                  <TextInput
+                    style={styles.aiInput}
+                    placeholder="e.g. Greece, Norway, Egypt, Brazil..."
+                    placeholderTextColor={Colors.neutral[400]}
+                    value={aiCountryInput}
+                    onChangeText={setAiCountryInput}
+                    autoCapitalize="words"
+                    editable={!isGeneratingAI}
+                  />
+                  <TouchableOpacity
+                    style={[styles.aiGenerateBtn, isGeneratingAI && { opacity: 0.7 }]}
+                    onPress={handleGenerateWithGemini}
+                    disabled={isGeneratingAI}
+                    activeOpacity={0.85}
+                  >
+                    {isGeneratingAI ? (
+                      <ActivityIndicator size="small" color={Colors.white} />
+                    ) : (
+                      <>
+                        <Ionicons name="sparkles" size={14} color={Colors.white} />
+                        <Text style={styles.aiGenerateBtnText}>Generate</Text>
+                      </>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </View>
     );
   }
@@ -226,12 +318,57 @@ export default function TravelHubScreen() {
             <Text style={styles.title}>Global Health Hub</Text>
           </View>
 
-          {/* Automatically Detected Location Pill */}
-          <View style={styles.countryDetectedPill}>
+          {/* Destination Selector Pill */}
+          <TouchableOpacity
+            style={styles.countryDetectedPill}
+            onPress={() => setIsModalVisible(true)}
+            activeOpacity={0.8}
+            accessibilityLabel="Switch destination country"
+          >
             <View style={styles.liveGpsDot} />
             <Text style={styles.flagEmoji}>{activeCountry.flag}</Text>
             <Text style={styles.countryName}>{activeCountry.name}</Text>
-          </View>
+            <Ionicons name="chevron-down" size={14} color={Colors.neutral[600]} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Horizontal Destination Selector Carousel */}
+        <View style={styles.carouselContainer}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.countryPillsScroll}
+          >
+            {countries.map(country => {
+              const isActive = country.code.toUpperCase() === activeCountry.code.toUpperCase();
+              return (
+                <TouchableOpacity
+                  key={country.code}
+                  style={[styles.countryChip, isActive && styles.countryChipActive]}
+                  onPress={() => setActiveCountry(country)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.countryChipFlag}>{country.flag}</Text>
+                  <Text style={[styles.countryChipText, isActive && styles.countryChipTextActive]}>
+                    {country.name}
+                  </Text>
+                  {isActive && (
+                    <Ionicons name="checkmark-circle" size={13} color={Colors.white} style={{ marginLeft: 2 }} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+
+            {/* AI Generator Action Pill */}
+            <TouchableOpacity
+              style={styles.countryChipAi}
+              onPress={() => setIsModalVisible(true)}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="sparkles" size={14} color={Colors.primary[600]} />
+              <Text style={styles.countryChipAiText}>+ Add with Gemini</Text>
+            </TouchableOpacity>
+          </ScrollView>
         </View>
 
         {/* Local Emergency SOS Banner */}
@@ -241,12 +378,12 @@ export default function TravelHubScreen() {
               <View style={styles.sosIconCircle}>
                 <Ionicons name="warning" size={16} color={Colors.white} />
               </View>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.sosTitle}>
                   {activeCountry.name} Local Emergency EMS
                 </Text>
                 <Text style={styles.sosSub}>
-                  One-tap direct dial to local first responders
+                  One-tap direct dial to certified local first responders
                 </Text>
               </View>
             </View>
@@ -318,10 +455,15 @@ export default function TravelHubScreen() {
         {/* Travel Health Intelligence Card */}
         <View style={styles.advisoryCard}>
           <View style={styles.advisoryHeader}>
-            <Ionicons name="shield" size={18} color={Colors.sage.main} />
-            <Text style={styles.advisoryTitle}>
-              Health & Entry Advisory for {activeCountry.name}
-            </Text>
+            <View style={styles.advisoryHeaderTitleRow}>
+              <Ionicons name="shield" size={18} color={Colors.sage.main} />
+              <Text style={styles.advisoryTitle}>
+                Health & Entry Advisory for {activeCountry.name}
+              </Text>
+            </View>
+            <View style={styles.capitalTag}>
+              <Text style={styles.capitalTagText}>Capital: {activeCountry.capital}</Text>
+            </View>
           </View>
 
           <View style={styles.advisoryPillsRow}>
@@ -386,12 +528,15 @@ export default function TravelHubScreen() {
           )}
 
           {/* Recommended Vaccines */}
-          <View style={styles.vaccineRow}>
-            <Text style={styles.vaccineLabel}>Recommended Vaccines:</Text>
-            <Text style={styles.vaccineValue}>
-              {activeCountry.healthAdvisories.recommendedVaccines.join(' • ')}
-            </Text>
-          </View>
+          {activeCountry.healthAdvisories.recommendedVaccines &&
+            activeCountry.healthAdvisories.recommendedVaccines.length > 0 && (
+              <View style={styles.vaccineRow}>
+                <Text style={styles.vaccineLabel}>Recommended Vaccines:</Text>
+                <Text style={styles.vaccineValue}>
+                  {activeCountry.healthAdvisories.recommendedVaccines.join(' • ')}
+                </Text>
+              </View>
+            )}
         </View>
 
         {/* Section: Travel Health Services */}
@@ -413,7 +558,7 @@ export default function TravelHubScreen() {
               </View>
               <Text style={styles.toolTitle}>Medical Translator</Text>
               <Text style={styles.toolDesc}>
-                Phonetic phrases & high-contrast screen cards for foreign doctors and pharmacies.
+                Phonetic phrases & high-contrast screen cards for foreign doctors and pharmacies in {activeCountry.name}.
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.neutral[400]} />
@@ -436,7 +581,7 @@ export default function TravelHubScreen() {
               </View>
               <Text style={styles.toolTitle}>Medicine Converter</Text>
               <Text style={styles.toolDesc}>
-                Foreign brand equivalents for Tylenol, Advil, Imodium & customs banned drug alerts.
+                Brand equivalents for Tylenol, Advil, Imodium & customs banned drug alerts abroad.
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color={Colors.neutral[400]} />
@@ -509,6 +654,120 @@ export default function TravelHubScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* ─── Gemini AI Destination Harvester & Country Selector Modal ─── */}
+      <Modal
+        visible={isModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setIsModalVisible(false)}
+      >
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        >
+          <View style={styles.modalSheet}>
+            {/* Modal Header */}
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>Select Destination</Text>
+                <Text style={styles.modalSubtitle}>16+ verified destinations or generate with Gemini AI</Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setIsModalVisible(false)}
+                style={styles.modalCloseBtn}
+              >
+                <Ionicons name="close" size={20} color={Colors.neutral[700]} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Gemini AI Country Generator Box */}
+            <View style={styles.aiGeneratorCard}>
+              <View style={styles.aiBadgeRow}>
+                <Ionicons name="sparkles" size={14} color="#7C3AED" />
+                <Text style={styles.aiBadgeText}>GEMINI AI TRAVEL INTELLIGENCE</Text>
+              </View>
+              <Text style={styles.aiCardDesc}>
+                Type any destination in the world to automatically generate local EMS numbers, vaccine advisories, and embassy care:
+              </Text>
+              <View style={styles.aiInputRow}>
+                <TextInput
+                  style={styles.aiInput}
+                  placeholder="e.g. Greece, Norway, Egypt, Brazil..."
+                  placeholderTextColor={Colors.neutral[400]}
+                  value={aiCountryInput}
+                  onChangeText={setAiCountryInput}
+                  autoCapitalize="words"
+                  editable={!isGeneratingAI}
+                />
+                <TouchableOpacity
+                  style={[styles.aiGenerateBtn, isGeneratingAI && { opacity: 0.7 }]}
+                  onPress={handleGenerateWithGemini}
+                  disabled={isGeneratingAI}
+                  activeOpacity={0.85}
+                >
+                  {isGeneratingAI ? (
+                    <ActivityIndicator size="small" color={Colors.white} />
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={14} color={Colors.white} />
+                      <Text style={styles.aiGenerateBtnText}>Generate</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            {/* Search Existing Countries */}
+            <View style={styles.searchContainer}>
+              <Ionicons name="search" size={16} color={Colors.neutral[500]} />
+              <TextInput
+                style={styles.searchInput}
+                placeholder="Search verified countries…"
+                placeholderTextColor={Colors.neutral[400]}
+                value={searchFilter}
+                onChangeText={setSearchFilter}
+              />
+              {searchFilter.length > 0 && (
+                <TouchableOpacity onPress={() => setSearchFilter('')}>
+                  <Ionicons name="close-circle" size={16} color={Colors.neutral[400]} />
+                </TouchableOpacity>
+              )}
+            </View>
+
+            {/* Countries List */}
+            <ScrollView style={styles.countriesList} showsVerticalScrollIndicator={false}>
+              {filteredCountriesList.map(c => {
+                const isSelected = c.code.toUpperCase() === activeCountry.code.toUpperCase();
+                return (
+                  <TouchableOpacity
+                    key={c.code}
+                    style={[styles.countryListItem, isSelected && styles.countryListItemActive]}
+                    onPress={() => {
+                      setActiveCountry(c);
+                      setIsModalVisible(false);
+                    }}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={styles.countryListFlag}>{c.flag}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.countryListName, isSelected && styles.countryListNameActive]}>
+                        {c.name}
+                      </Text>
+                      <Text style={styles.countryListSub}>
+                        {c.capital} • {c.currency} ({c.currencySymbol}) • EMS: {c.emergencyNumbers.general}
+                      </Text>
+                    </View>
+                    {isSelected && (
+                      <Ionicons name="checkmark-circle" size={20} color={Colors.primary[500]} />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
@@ -535,7 +794,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Spacing[4],
+    marginBottom: Spacing[3],
   },
   badgeRow: {
     flexDirection: 'row',
@@ -586,6 +845,59 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.semiBold,
     color: Colors.neutral[800],
+  },
+
+  // Carousel Country Chips
+  carouselContainer: {
+    marginBottom: Spacing[4],
+  },
+  countryPillsScroll: {
+    gap: Spacing[2],
+    paddingVertical: 2,
+  },
+  countryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.white,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: Colors.neutral[200],
+    ...Shadows.sm,
+  },
+  countryChipActive: {
+    backgroundColor: Colors.primary[500],
+    borderColor: Colors.primary[600],
+  },
+  countryChipFlag: {
+    fontSize: 16,
+  },
+  countryChipText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.neutral[800],
+  },
+  countryChipTextActive: {
+    color: Colors.white,
+    fontFamily: Typography.fontFamily.bold,
+  },
+  countryChipAi: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 8,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  countryChipAiText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#7C3AED',
   },
 
   // SOS Banner
@@ -649,19 +961,19 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   sosBtnPrimaryNumber: {
-    fontSize: Typography.fontSize.md,
+    fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.white,
   },
   sosBtnSecondary: {
     backgroundColor: Colors.neutral[100],
     borderWidth: 1,
-    borderColor: Colors.neutral[150],
+    borderColor: Colors.neutral[200],
   },
   sosBtnSecondaryLabel: {
     fontSize: 10,
-    fontFamily: Typography.fontFamily.semiBold,
-    color: Colors.neutral[500],
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[600],
     textTransform: 'uppercase',
   },
   sosBtnSecondaryNumber: {
@@ -683,13 +995,30 @@ const styles = StyleSheet.create({
   advisoryHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing[2],
+    justifyContent: 'space-between',
     marginBottom: Spacing[3],
+  },
+  advisoryHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    flex: 1,
   },
   advisoryTitle: {
     fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.neutral[900],
+  },
+  capitalTag: {
+    backgroundColor: Colors.neutral[100],
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: BorderRadius.md,
+  },
+  capitalTagText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[700],
   },
   advisoryPillsRow: {
     flexDirection: 'row',
@@ -702,7 +1031,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
     paddingHorizontal: Spacing[3],
-    paddingVertical: 5,
+    paddingVertical: 6,
     borderRadius: BorderRadius.full,
   },
   healthMetricSafe: {
@@ -713,7 +1042,7 @@ const styles = StyleSheet.create({
   },
   healthMetricText: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.bold,
+    fontFamily: Typography.fontFamily.semiBold,
   },
   healthMetricNeutral: {
     backgroundColor: Colors.neutral[100],
@@ -721,15 +1050,15 @@ const styles = StyleSheet.create({
   healthMetricNeutralText: {
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamily.medium,
-    color: Colors.neutral[700],
+    color: Colors.neutral[800],
   },
   alertNotice: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: Spacing[2],
     backgroundColor: Colors.ochre.light,
-    borderRadius: BorderRadius.lg,
     padding: Spacing[3],
+    borderRadius: BorderRadius.xl,
     marginBottom: Spacing[3],
   },
   alertNoticeText: {
@@ -737,33 +1066,31 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.ochre.dark,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   vaccineRow: {
     borderTopWidth: 1,
     borderTopColor: Colors.neutral[150],
-    paddingTop: Spacing[2],
+    paddingTop: Spacing[3],
   },
   vaccineLabel: {
-    fontSize: 10,
-    fontFamily: Typography.fontFamily.bold,
-    color: Colors.neutral[500],
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.neutral[600],
     marginBottom: 2,
   },
   vaccineValue: {
     fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
+    fontFamily: Typography.fontFamily.regular,
     color: Colors.neutral[800],
+    lineHeight: 18,
   },
 
   // Tools Section
   sectionTitle: {
-    fontSize: Typography.fontSize.md,
+    fontSize: Typography.fontSize.lg,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.neutral[900],
-    letterSpacing: -0.3,
     marginBottom: Spacing[3],
   },
   toolsGrid: {
@@ -775,8 +1102,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing[3],
     backgroundColor: Colors.white,
-    borderRadius: BorderRadius['2xl'],
     padding: Spacing[4],
+    borderRadius: BorderRadius['2xl'],
     borderWidth: 1.5,
     borderColor: Colors.neutral[150],
     ...Shadows.sm,
@@ -784,7 +1111,7 @@ const styles = StyleSheet.create({
   toolIconWrap: {
     width: 48,
     height: 48,
-    borderRadius: BorderRadius.xl,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -794,10 +1121,10 @@ const styles = StyleSheet.create({
   toolBadgeRow: {
     alignSelf: 'flex-start',
     backgroundColor: '#FDF2F0',
-    paddingHorizontal: 6,
+    paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: BorderRadius.full,
-    marginBottom: 3,
+    marginBottom: 4,
   },
   toolBadgeText: {
     fontSize: 9,
@@ -814,23 +1141,24 @@ const styles = StyleSheet.create({
   toolDesc: {
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamily.regular,
-    color: Colors.neutral[500],
+    color: Colors.neutral[600],
     lineHeight: 16,
   },
 
   // Embassy Card
   embassyCard: {
-    backgroundColor: Colors.neutral[100],
+    backgroundColor: Colors.white,
     borderRadius: BorderRadius['2xl'],
     padding: Spacing[4],
-    borderWidth: 1,
-    borderColor: Colors.neutral[200],
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[150],
+    ...Shadows.sm,
   },
   embassyTop: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing[2],
-    marginBottom: 4,
+    marginBottom: 6,
   },
   embassyTitle: {
     fontSize: Typography.fontSize.sm,
@@ -847,14 +1175,183 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
+    gap: Spacing[2],
     backgroundColor: Colors.neutral[900],
-    paddingVertical: Spacing[2],
-    paddingHorizontal: Spacing[3],
-    borderRadius: BorderRadius.full,
+    paddingVertical: Spacing[3],
+    borderRadius: BorderRadius.xl,
   },
   embassyCallText: {
     fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.white,
+  },
+
+  // Modal Styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: Colors.white,
+    borderTopLeftRadius: BorderRadius['3xl'],
+    borderTopRightRadius: BorderRadius['3xl'],
+    padding: Spacing[4],
+    maxHeight: '85%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing[3],
+  },
+  modalTitle: {
+    fontSize: Typography.fontSize.lg,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.neutral[900],
+  },
+  modalSubtitle: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[500],
+  },
+  modalCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: Colors.neutral[100],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Gemini AI Box in Modal
+  aiGeneratorCard: {
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1.5,
+    borderColor: '#E9D5FF',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing[3],
+    marginBottom: Spacing[3],
+  },
+  aiBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: 4,
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#7C3AED',
+    letterSpacing: 0.6,
+  },
+  aiCardDesc: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[700],
+    lineHeight: 16,
+    marginBottom: Spacing[2],
+  },
+  aiInputRow: {
+    flexDirection: 'row',
+    gap: Spacing[2],
+  },
+  aiInput: {
+    flex: 1,
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 8,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[900],
+    borderWidth: 1,
+    borderColor: '#D8B4FE',
+  },
+  aiGenerateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 8,
+    borderRadius: BorderRadius.xl,
+    justifyContent: 'center',
+  },
+  aiGenerateBtnText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.white,
+  },
+
+  // Search in Modal
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    backgroundColor: Colors.neutral[100],
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 8,
+    marginBottom: Spacing[3],
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[900],
+  },
+
+  // Countries List in Modal
+  countriesList: {
+    maxHeight: 340,
+  },
+  countryListItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[3],
+    paddingVertical: Spacing[3],
+    paddingHorizontal: Spacing[2],
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutral[150],
+  },
+  countryListItemActive: {
+    backgroundColor: '#FDF2F0',
+    borderRadius: BorderRadius.xl,
+  },
+  countryListFlag: {
+    fontSize: 24,
+  },
+  countryListName: {
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.neutral[900],
+  },
+  countryListNameActive: {
+    color: Colors.primary[600],
+    fontFamily: Typography.fontFamily.bold,
+  },
+  countryListSub: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[500],
+    marginTop: 2,
+  },
+  emptyGenBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing[2],
+    backgroundColor: '#7C3AED',
+    paddingVertical: Spacing[3],
+    paddingHorizontal: Spacing[4],
+    borderRadius: BorderRadius.xl,
+    marginTop: Spacing[4],
+    alignSelf: 'center',
+    ...Shadows.sm,
+  },
+  emptyGenBtnText: {
+    fontSize: Typography.fontSize.sm,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.white,
   },

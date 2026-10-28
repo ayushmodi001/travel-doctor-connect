@@ -14,7 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { ProfileStackParamList, User } from '../../types';
@@ -48,7 +48,6 @@ export const ProfileScreen: React.FC = () => {
         profileImage: data?.profileImage || authUser?.profileImage,
       }));
     } catch (err: any) {
-      // If server lookup failed, gracefully rely on authenticated Clerk user
       if (authUser) {
         setProfile(authUser);
       } else {
@@ -59,9 +58,12 @@ export const ProfileScreen: React.FC = () => {
     }
   }, [authUser]);
 
-  useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
+  // Auto-reload on screen focus so returned edits appear immediately
+  useFocusEffect(
+    useCallback(() => {
+      loadProfile();
+    }, [loadProfile])
+  );
 
   const currentUser = profile || authUser;
 
@@ -79,7 +81,7 @@ export const ProfileScreen: React.FC = () => {
   const MENU_ITEMS = [
     { icon: 'create-outline', label: i18n.t('profile.editProfile'), screen: 'EditProfile' as const },
     { icon: 'medical-outline', label: i18n.t('profile.medicalHistory'), screen: 'MedicalHistory' as const },
-    { icon: 'shield-checkmark-outline', label: 'Admin & Doctor Portal', screen: 'AdminDoctorPanel' as const },
+    { icon: 'people-outline', label: 'Family & Guardian Tracker', screen: 'FamilyTracker' as const },
     { icon: 'settings-outline', label: i18n.t('nav.settings'), screen: 'Settings' as const },
   ];
 
@@ -144,57 +146,110 @@ export const ProfileScreen: React.FC = () => {
 
         {/* Health ID Overview */}
         <View style={styles.healthCard}>
-          <Text style={styles.sectionTitle}>Medical ID Snapshot</Text>
+          <View style={styles.sectionTitleRow}>
+            <Text style={styles.sectionTitle}>Medical ID Snapshot</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+              <Text style={styles.editSectionLink}>Edit</Text>
+            </TouchableOpacity>
+          </View>
           <View style={styles.healthGrid}>
-            <HealthItem
-              icon="water"
-              label={i18n.t('profile.bloodGroup')}
-              value={user?.bloodGroup ?? 'O+'}
-              color={Colors.primary[500]}
-            />
-            <HealthItem
-              icon="alert-circle"
-              label={i18n.t('profile.allergies')}
-              value={user?.allergies?.length ? `${user.allergies.length} recorded` : 'None'}
-              color={Colors.terracotta.main}
-            />
-            <HealthItem
-              icon="document-text"
-              label={i18n.t('profile.medicalHistory')}
-              value={user?.medicalHistory?.length ? `${user.medicalHistory.length} conditions` : 'None'}
-              color={Colors.sage.main}
-            />
+            <TouchableOpacity
+              style={styles.healthItemTouchable}
+              onPress={() => navigation.navigate('EditProfile')}
+              activeOpacity={0.75}
+            >
+              <HealthItem
+                icon="water"
+                label={i18n.t('profile.bloodGroup')}
+                value={user?.bloodGroup ?? 'O+'}
+                color={Colors.primary[500]}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.healthItemTouchable}
+              onPress={() => navigation.navigate('MedicalHistory')}
+              activeOpacity={0.75}
+            >
+              <HealthItem
+                icon="alert-circle"
+                label={i18n.t('profile.allergies')}
+                value={user?.allergies?.length ? `${user.allergies.length} recorded` : 'None'}
+                color={Colors.terracotta.main}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.healthItemTouchable}
+              onPress={() => navigation.navigate('MedicalHistory')}
+              activeOpacity={0.75}
+            >
+              <HealthItem
+                icon="document-text"
+                label={i18n.t('profile.medicalHistory')}
+                value={user?.medicalHistory?.length ? `${user.medicalHistory.length} conditions` : 'None'}
+                color={Colors.sage.main}
+              />
+            </TouchableOpacity>
           </View>
         </View>
 
         {/* Known Allergies */}
-        {user?.allergies && user.allergies.length > 0 && (
-          <View style={styles.section}>
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.allergies')}</Text>
+            <TouchableOpacity onPress={() => navigation.navigate('MedicalHistory')}>
+              <Text style={styles.editSectionLink}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+          {user?.allergies && user.allergies.length > 0 ? (
             <View style={styles.badgeRow}>
               {user.allergies.map(a => (
                 <Badge key={a} label={a} color={Colors.primary[700]} bg={Colors.primary[50]} />
               ))}
             </View>
-          </View>
-        )}
+          ) : (
+            <TouchableOpacity onPress={() => navigation.navigate('MedicalHistory')}>
+              <Text style={styles.emptyAddPrompt}>No allergies recorded. Tap to add.</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         {/* Emergency Contact */}
-        {user?.emergencyContact && (
-          <View style={styles.section}>
+        <View style={styles.section}>
+          <View style={styles.sectionTitleRow}>
             <Text style={styles.sectionTitle}>{i18n.t('profile.emergencyContact')}</Text>
-            <View style={styles.contactCard}>
+            <TouchableOpacity onPress={() => navigation.navigate('EditProfile')}>
+              <Text style={styles.editSectionLink}>Edit</Text>
+            </TouchableOpacity>
+          </View>
+          {user?.emergencyContact?.name ? (
+            <TouchableOpacity
+              style={styles.contactCard}
+              onPress={() => navigation.navigate('EditProfile')}
+              activeOpacity={0.8}
+            >
               <View style={styles.contactIcon}>
                 <Ionicons name="shield" size={20} color={Colors.primary[500]} />
               </View>
               <View style={styles.contactInfo}>
                 <Text style={styles.contactName}>{user.emergencyContact.name}</Text>
-                <Text style={styles.contactRel}>{user.emergencyContact.relation}</Text>
+                <Text style={styles.contactRel}>{user.emergencyContact.relation || 'Contact'}</Text>
                 <Text style={styles.contactPhone}>{user.emergencyContact.phone}</Text>
               </View>
-            </View>
-          </View>
-        )}
+              <Ionicons name="chevron-forward" size={16} color={Colors.neutral[400]} />
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={styles.addContactCard}
+              onPress={() => navigation.navigate('EditProfile')}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="add-circle-outline" size={20} color={Colors.primary[500]} />
+              <Text style={styles.addContactText}>+ Add Emergency Contact for Medical ID</Text>
+            </TouchableOpacity>
+          )}
+        </View>
 
         <Divider />
 
@@ -351,12 +406,25 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
     marginBottom: Spacing[3],
   },
+  sectionTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing[3],
+  },
+  editSectionLink: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primary[600],
+  },
   healthGrid: {
     flexDirection: 'row',
     gap: Spacing[2],
   },
-  healthItem: {
+  healthItemTouchable: {
     flex: 1,
+  },
+  healthItem: {
     alignItems: 'center',
     backgroundColor: Colors.neutral[50],
     paddingVertical: Spacing[3],
@@ -384,6 +452,28 @@ const styles = StyleSheet.create({
     color: Colors.neutral[500],
     marginTop: 2,
     textAlign: 'center',
+  },
+  emptyAddPrompt: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primary[600],
+    paddingVertical: Spacing[2],
+  },
+  addContactCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: 14,
+    backgroundColor: Colors.primary[50],
+    borderRadius: BorderRadius.xl,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: Colors.primary[300],
+  },
+  addContactText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.primary[700],
   },
 
   section: {

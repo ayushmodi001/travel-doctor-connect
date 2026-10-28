@@ -11,12 +11,6 @@
 
 import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
 import { MOCK_DOCTORS, MOCK_APPOINTMENTS, MOCK_EMERGENCY_SERVICES } from '../data/mockData';
-import {
-  DESTINATION_COUNTRIES,
-  MEDICAL_PHRASES,
-  MEDICINE_EQUIVALENTS,
-  DEFAULT_TRAVEL_INSURANCE,
-} from '../data/travelData';
 
 let pool: Pool | null = null;
 let isConnected = false;
@@ -425,113 +419,7 @@ export async function initDatabase(): Promise<void> {
       }
     }
 
-    // Seed travel destinations if empty
-    const destCheck = await currentPool.query('SELECT count(*) as count FROM travel_destinations');
-    if (parseInt(destCheck.rows[0].count, 10) === 0) {
-      console.log('[Neon DB] Seeding travel destinations into Neon DB...');
-      for (const c of DESTINATION_COUNTRIES) {
-        await currentPool.query(
-          `INSERT INTO travel_destinations (id, code, name, flag, capital, currency, currency_symbol, primary_language, local_emergency, embassy_support, health_advisories)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-           ON CONFLICT (code) DO NOTHING`,
-          [
-            `dest_${c.code}`,
-            c.code,
-            c.name,
-            c.flag,
-            c.capital,
-            c.currency,
-            c.currencySymbol,
-            c.primaryLanguage,
-            JSON.stringify(c.emergencyNumbers),
-            JSON.stringify(c.embassySupport),
-            JSON.stringify(c.healthAdvisories),
-          ]
-        );
-      }
-    }
-
-    // Seed medical phrases if empty
-    const phraseCheck = await currentPool.query('SELECT count(*) as count FROM medical_phrases');
-    if (parseInt(phraseCheck.rows[0].count, 10) === 0) {
-      console.log('[Neon DB] Seeding medical phrases into Neon DB...');
-      for (const p of MEDICAL_PHRASES) {
-        await currentPool.query(
-          `INSERT INTO medical_phrases (id, category, english, translation, phonetic, language, language_code, flag)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-           ON CONFLICT (id) DO NOTHING`,
-          [
-            p.id,
-            p.category,
-            p.english,
-            p.translation,
-            p.phonetic,
-            p.language,
-            p.languageCode,
-            p.flag,
-          ]
-        );
-      }
-    }
-
-    // Seed medicine equivalents if empty
-    const medCheck = await currentPool.query('SELECT count(*) as count FROM medicine_equivalents');
-    if (parseInt(medCheck.rows[0].count, 10) === 0) {
-      console.log('[Neon DB] Seeding medicine equivalents into Neon DB...');
-      for (const m of MEDICINE_EQUIVALENTS) {
-        await currentPool.query(
-          `INSERT INTO medicine_equivalents (id, generic_name, primary_use, common_home_brands, brands_by_country, customs_restrictions)
-           VALUES ($1, $2, $3, $4, $5, $6)
-           ON CONFLICT (id) DO NOTHING`,
-          [
-            m.id,
-            m.genericName,
-            m.primaryUse,
-            JSON.stringify(m.commonHomeBrands),
-            JSON.stringify(m.brandsByCountry),
-            JSON.stringify(m.customsRestrictions),
-          ]
-        );
-      }
-    }
-
-    // Seed travel insurance policy if empty
-    const insCheck = await currentPool.query('SELECT count(*) as count FROM travel_insurance');
-    if (parseInt(insCheck.rows[0].count, 10) === 0) {
-      console.log('[Neon DB] Seeding travel insurance into Neon DB...');
-      await currentPool.query(
-        `INSERT INTO travel_insurance (id, policy_number, provider, plan_name, status, valid_from, valid_to, emergency_assistance_phone, claims_email, coverage_limit, deductible, emergency_evacuation_limit, covered_countries, checklist_steps)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-         ON CONFLICT (id) DO NOTHING`,
-        [
-          DEFAULT_TRAVEL_INSURANCE.policyNumber,
-          DEFAULT_TRAVEL_INSURANCE.policyNumber,
-          DEFAULT_TRAVEL_INSURANCE.provider,
-          DEFAULT_TRAVEL_INSURANCE.planName,
-          DEFAULT_TRAVEL_INSURANCE.status,
-          DEFAULT_TRAVEL_INSURANCE.validFrom,
-          DEFAULT_TRAVEL_INSURANCE.validTo,
-          DEFAULT_TRAVEL_INSURANCE.emergencyAssistancePhone,
-          DEFAULT_TRAVEL_INSURANCE.claimsEmail,
-          DEFAULT_TRAVEL_INSURANCE.coverageLimit,
-          DEFAULT_TRAVEL_INSURANCE.deductible,
-          DEFAULT_TRAVEL_INSURANCE.emergencyEvacuationLimit,
-          JSON.stringify(DEFAULT_TRAVEL_INSURANCE.coveredCountries),
-          JSON.stringify(DEFAULT_TRAVEL_INSURANCE.checklistSteps),
-        ]
-      );
-    }
-
-    // Seed default user vitals if empty
-    const vitCheck = await currentPool.query('SELECT count(*) as count FROM user_vitals');
-    if (parseInt(vitCheck.rows[0].count, 10) === 0) {
-      console.log('[Neon DB] Seeding user vitals into Neon DB...');
-      await currentPool.query(
-        `INSERT INTO user_vitals (id, user_id, heart_rate, blood_pressure, blood_oxygen, blood_group)
-         VALUES ('v1', 'u1', '72 bpm', '120/80 mmHg', '98%', 'O+')
-         ON CONFLICT (id) DO NOTHING`
-      );
-    }
+    // Note: Travel destinations, medical phrases, and medicine equivalents are generated dynamically via Gemini AI.
 
     console.log('[Neon DB] Database initialized and verified successfully!');
   } catch (err: any) {

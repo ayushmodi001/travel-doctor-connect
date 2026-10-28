@@ -136,6 +136,7 @@ export interface MedicineEquivalent {
     warningNote?: string;
   };
   prescriptionNeededAbroad?: boolean;
+  otcAvailability?: string;
 }
 
 export interface TravelInsurancePolicy {

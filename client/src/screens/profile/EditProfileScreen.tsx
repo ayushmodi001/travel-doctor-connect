@@ -15,6 +15,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -40,6 +41,12 @@ export const EditProfileScreen: React.FC = () => {
   const [emergencyName, setEmergencyName] = useState(user?.emergencyContact?.name || '');
   const [emergencyPhone, setEmergencyPhone] = useState(user?.emergencyContact?.phone || '');
   const [emergencyRelation, setEmergencyRelation] = useState(user?.emergencyContact?.relation || '');
+
+  // Allergies & Medical Conditions
+  const [allergies, setAllergies] = useState<string[]>(user?.allergies || []);
+  const [medicalHistory, setMedicalHistory] = useState<string[]>(user?.medicalHistory || []);
+  const [newAllergyText, setNewAllergyText] = useState('');
+  const [newConditionText, setNewConditionText] = useState('');
 
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState(false);
@@ -76,6 +83,8 @@ export const EditProfileScreen: React.FC = () => {
         name: name.trim(),
         phone: phone.trim(),
         bloodGroup,
+        allergies,
+        medicalHistory,
         profileImage: avatarUri,
         emergencyContact: {
           name: emergencyName.trim(),
@@ -177,6 +186,90 @@ export const EditProfileScreen: React.FC = () => {
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+
+        {/* Known Allergies Card */}
+        <View style={styles.card}>
+          <View style={styles.emergencyTitleRow}>
+            <Ionicons name="alert-circle-outline" size={18} color={Colors.terracotta.main} />
+            <Text style={styles.cardTitle}>Known Allergies</Text>
+          </View>
+          <Text style={styles.cardSub}>
+            Record any medication, food, or environmental allergies for your travel medical ID.
+          </Text>
+
+          <View style={styles.chipRow}>
+            {allergies.map(item => (
+              <View key={item} style={styles.tagChip}>
+                <Text style={styles.tagChipText}>{item}</Text>
+                <TouchableOpacity onPress={() => setAllergies(allergies.filter(a => a !== item))}>
+                  <Ionicons name="close-circle" size={16} color={Colors.terracotta.main} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.addInputRow}>
+            <TextInput
+              style={styles.inlineInput}
+              placeholder="e.g. Penicillin, Peanuts, Sulfa"
+              value={newAllergyText}
+              onChangeText={setNewAllergyText}
+            />
+            <TouchableOpacity
+              style={styles.inlineAddBtn}
+              onPress={() => {
+                if (newAllergyText.trim() && !allergies.includes(newAllergyText.trim())) {
+                  setAllergies([...allergies, newAllergyText.trim()]);
+                  setNewAllergyText('');
+                }
+              }}
+            >
+              <Text style={styles.inlineAddBtnText}>+ Add</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Medical History & Conditions Card */}
+        <View style={styles.card}>
+          <View style={styles.emergencyTitleRow}>
+            <Ionicons name="document-text-outline" size={18} color={Colors.sage.main} />
+            <Text style={styles.cardTitle}>Medical Conditions</Text>
+          </View>
+          <Text style={styles.cardSub}>
+            Pre-existing conditions, chronic illnesses, or recent surgeries.
+          </Text>
+
+          <View style={styles.chipRow}>
+            {medicalHistory.map(item => (
+              <View key={item} style={[styles.tagChip, { backgroundColor: Colors.sage.light, borderColor: Colors.sage.main }]}>
+                <Text style={[styles.tagChipText, { color: Colors.sage.dark }]}>{item}</Text>
+                <TouchableOpacity onPress={() => setMedicalHistory(medicalHistory.filter(c => c !== item))}>
+                  <Ionicons name="close-circle" size={16} color={Colors.sage.main} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+
+          <View style={styles.addInputRow}>
+            <TextInput
+              style={styles.inlineInput}
+              placeholder="e.g. Asthma, Hypertension, Diabetes"
+              value={newConditionText}
+              onChangeText={setNewConditionText}
+            />
+            <TouchableOpacity
+              style={[styles.inlineAddBtn, { backgroundColor: Colors.sage.main }]}
+              onPress={() => {
+                if (newConditionText.trim() && !medicalHistory.includes(newConditionText.trim())) {
+                  setMedicalHistory([...medicalHistory, newConditionText.trim()]);
+                  setNewConditionText('');
+                }
+              }}
+            >
+              <Text style={styles.inlineAddBtnText}>+ Add</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
@@ -398,5 +491,54 @@ const styles = StyleSheet.create({
   saveBtn: {
     width: '100%',
     marginTop: Spacing[2],
+  },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing[2],
+    marginBottom: Spacing[3],
+  },
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.terracotta.light,
+    borderColor: Colors.terracotta.main,
+    borderWidth: 1,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+  },
+  tagChipText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.terracotta.dark,
+  },
+  addInputRow: {
+    flexDirection: 'row',
+    gap: Spacing[2],
+  },
+  inlineInput: {
+    flex: 1,
+    backgroundColor: Colors.neutral[50],
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[200],
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 10,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[900],
+  },
+  inlineAddBtn: {
+    backgroundColor: Colors.terracotta.main,
+    paddingHorizontal: Spacing[4],
+    justifyContent: 'center',
+    borderRadius: BorderRadius.xl,
+  },
+  inlineAddBtnText: {
+    color: Colors.white,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
   },
 });

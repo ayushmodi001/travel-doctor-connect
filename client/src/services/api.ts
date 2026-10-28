@@ -46,11 +46,15 @@ const getDefaultBaseUrl = () => {
   return 'http://localhost:5000/api';
 };
 
-const API_BASE_URL = getDefaultBaseUrl();
+export const API_BASE_URL = getDefaultBaseUrl();
+
+export const getAdminPortalUrl = (): string => {
+  return API_BASE_URL.replace('/api', '') + '/admin';
+};
 
 const apiClient: AxiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 12000,
+  timeout: 30000,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -85,9 +89,9 @@ apiClient.interceptors.response.use(
     if (error.response?.data?.message) {
       message = error.response.data.message;
     } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-      message = 'Request timed out. The healthcare server took too long to respond.';
+      message = 'Request timed out. The healthcare server or Gemini AI took too long to respond.';
     } else if (error.message?.includes('Network Error')) {
-      message = 'Cannot reach healthcare server. Please ensure the backend is running.';
+      message = `Cannot reach healthcare server at ${API_BASE_URL}. Please ensure the backend is running (run 'npm run server').`;
     } else if (error.message) {
       message = error.message;
     }
@@ -324,7 +328,7 @@ export const TravelService = {
     if (response.data && Array.isArray(response.data.data)) {
       return response.data.data;
     }
-    throw new Error('Unable to search medicine brand equivalents.');
+    throw new Error(response.data?.message || 'No medicine equivalents found in database.');
   },
 
   getTravelInsurance: async (): Promise<TravelInsurancePolicy> => {
@@ -333,6 +337,22 @@ export const TravelService = {
       return response.data.data;
     }
     throw new Error('Could not retrieve digital travel insurance policy.');
+  },
+
+  generateDestinationAI: async (countryCode: string): Promise<DestinationCountry> => {
+    const response = await apiClient.post('/ai/harvest-destination', { countryCode }, { timeout: 60000 });
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error(response.data?.message || 'Failed to generate destination intelligence.');
+  },
+
+  generateMedicineAI: async (medicineName: string): Promise<MedicineEquivalent> => {
+    const response = await apiClient.post('/ai/generate-medicine', { medicineName }, { timeout: 60000 });
+    if (response.data && response.data.data) {
+      return response.data.data;
+    }
+    throw new Error(response.data?.message || 'Failed to generate medicine brand equivalents.');
   },
 };
 
@@ -406,6 +426,25 @@ export const UserService = {
     if (!response.data?.success) {
       throw new Error('Failed to save settings on server.');
     }
+  },
+
+  getVitals: async (): Promise<any> => {
+    try {
+      const response = await apiClient.get('/users/vitals');
+      return response.data?.data || null;
+    } catch {
+      return null;
+    }
+  },
+
+  saveVitals: async (data: {
+    heartRate?: string;
+    bloodPressure?: string;
+    bloodOxygen?: string;
+    bloodGroup?: string;
+  }): Promise<any> => {
+    const response = await apiClient.post('/users/vitals', data);
+    return response.data?.data;
   },
 
   uploadProfileImage: async (uri: string): Promise<string> => {

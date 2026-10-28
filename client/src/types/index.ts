@@ -19,6 +19,8 @@ export interface User {
     relation: string;
   };
   address?: Address;
+  country?: string;
+  passportNumber?: string;
   medicalHistory?: string[];
   allergies?: string[];
   createdAt: string;
@@ -226,11 +228,24 @@ export interface MedicineEquivalent {
 export interface TravelInsurancePolicy {
   provider: string;
   policyNumber: string;
-  insuredName: string;
+  planName?: string;
+  status?: string;
+  validFrom?: string;
+  validTo?: string;
+  insuredName?: string;
   coverageLimit: string;
+  deductible?: string;
+  emergencyEvacuationLimit?: string;
   emergencyAssistancePhone: string;
-  validUntil: string;
-  claimChecklist: string[];
+  claimsEmail?: string;
+  validUntil?: string;
+  coveredCountries?: string[];
+  claimChecklist?: string[];
+  checklistSteps?: {
+    title: string;
+    desc: string;
+    required: boolean;
+  }[];
 }
 
 // ─── Navigation ───────────────────────────────────────────────────────────────
@@ -269,7 +284,7 @@ export type HomeStackParamList = {
   MedicalTranslator: { initialCategory?: string } | undefined;
   MedicineEquivalents: undefined;
   TravelInsurance: undefined;
-  AdminDoctorPanel: undefined;
+  FamilyTracker: undefined;
 };
 
 export type TravelStackParamList = {
@@ -300,7 +315,7 @@ export type ProfileStackParamList = {
   Settings: undefined;
   MedicalHistory: undefined;
   TravelInsurance: undefined;
-  AdminDoctorPanel: undefined;
+  FamilyTracker: undefined;
 };
 
 // ─── Filter ──────────────────────────────────────────────────────────────────

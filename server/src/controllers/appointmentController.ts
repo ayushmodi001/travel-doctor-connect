@@ -12,20 +12,25 @@ export const getAppointments = async (req: Request, res: Response) => {
       return res.status(500).json({ success: false, message: 'Database connection offline.' });
     }
 
-    let sql = 'SELECT * FROM appointments WHERE 1=1';
+    let sql = `
+      SELECT a.*, COALESCE(NULLIF(u.name, ''), a.patient_name) as real_patient_name
+      FROM appointments a
+      LEFT JOIN users u ON a.patient_id = u.id
+      WHERE 1=1
+    `;
     const params: any[] = [];
 
     if (patientId) {
       params.push(patientId);
-      sql += ` AND patient_id = $${params.length}`;
+      sql += ` AND a.patient_id = $${params.length}`;
     }
 
     if (status) {
       params.push(status);
-      sql += ` AND status = $${params.length}`;
+      sql += ` AND a.status = $${params.length}`;
     }
 
-    sql += ' ORDER BY created_at DESC';
+    sql += ' ORDER BY a.created_at DESC';
 
     const result = await pool.query(sql, params);
     const list = result.rows.map(r => ({
@@ -35,7 +40,7 @@ export const getAppointments = async (req: Request, res: Response) => {
       doctorSpecialty: r.doctor_specialty,
       doctorImage: r.doctor_image,
       patientId: r.patient_id,
-      patientName: r.patient_name,
+      patientName: r.real_patient_name || r.patient_name || 'Traveler',
       date: r.date,
       time: r.time,
       type: r.type,

@@ -32,7 +32,9 @@ import {
   AppointmentService,
   StorageService,
   MedicalDocument,
+  getAdminPortalUrl,
 } from '../../services/api';
+import * as WebBrowser from 'expo-web-browser';
 import { Button } from '../../components/ui/primitives';
 
 type TabType = 'doctors' | 'destinations' | 'appointments' | 'documents';
@@ -40,6 +42,7 @@ type TabType = 'doctors' | 'destinations' | 'appointments' | 'documents';
 export const AdminDoctorPanelScreen: React.FC = () => {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const portalUrl = getAdminPortalUrl();
 
   const [activeTab, setActiveTab] = useState<TabType>('doctors');
   const [isLoading, setIsLoading] = useState(false);
@@ -315,6 +318,47 @@ export const AdminDoctorPanelScreen: React.FC = () => {
         <TouchableOpacity style={styles.refreshBtn} onPress={loadData}>
           <Ionicons name="refresh" size={18} color={Colors.primary[600]} />
         </TouchableOpacity>
+      </View>
+
+      {/* Desktop Workstation Gateway Card */}
+      <View style={styles.desktopBannerCard}>
+        <View style={styles.desktopBadgeRow}>
+          <View style={styles.desktopBadge}>
+            <Ionicons name="desktop-outline" size={14} color={Colors.primary[700]} />
+            <Text style={styles.desktopBadgeText}>Desktop Workstation</Text>
+          </View>
+          <View style={styles.livePulseBadge}>
+            <View style={styles.pulseDot} />
+            <Text style={styles.pulseText}>Neon DB Live</Text>
+          </View>
+        </View>
+
+        <Text style={styles.desktopTitle}>Doctor Management Workstation</Text>
+        <Text style={styles.desktopSubtitle}>
+          The comprehensive healthcare portal is optimized for desktop browsers. Manage doctors, patient telehealth appointments, travel EMS hubs, and autonomous AI agents.
+        </Text>
+
+        <View style={styles.urlDisplayRow}>
+          <Ionicons name="link-outline" size={14} color={Colors.neutral[500]} />
+          <Text style={styles.urlDisplayText} numberOfLines={1}>{portalUrl}</Text>
+        </View>
+
+        <View style={styles.desktopBtnRow}>
+          <TouchableOpacity
+            style={styles.openDesktopBtn}
+            activeOpacity={0.85}
+            onPress={async () => {
+              try {
+                await WebBrowser.openBrowserAsync(portalUrl);
+              } catch {
+                Alert.alert('Desktop Workstation', `Open in your desktop browser:\n\n${portalUrl}`);
+              }
+            }}
+          >
+            <Ionicons name="open-outline" size={16} color={Colors.white} />
+            <Text style={styles.openDesktopBtnText}>Open Desktop Portal</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Segmented Tabs */}
@@ -1046,5 +1090,101 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: Spacing[3],
     marginTop: Spacing[2],
+  },
+  desktopBannerCard: {
+    marginHorizontal: Spacing[4],
+    marginBottom: Spacing[4],
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing[4],
+    borderWidth: 1,
+    borderColor: Colors.primary[200],
+    ...Shadows.md,
+  },
+  desktopBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing[2],
+  },
+  desktopBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary[50],
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: BorderRadius.full,
+  },
+  desktopBadgeText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.primary[700],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  livePulseBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: Colors.sage.main,
+  },
+  pulseText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.sage.dark,
+  },
+  desktopTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.neutral[900],
+    marginBottom: 4,
+  },
+  desktopSubtitle: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[600],
+    lineHeight: 18,
+    marginBottom: Spacing[3],
+  },
+  urlDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.neutral[100],
+    paddingHorizontal: Spacing[3],
+    paddingVertical: Spacing[2],
+    borderRadius: BorderRadius.md,
+    marginBottom: Spacing[3],
+  },
+  urlDisplayText: {
+    flex: 1,
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[700],
+  },
+  desktopBtnRow: {
+    flexDirection: 'row',
+  },
+  openDesktopBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: Colors.primary[600],
+    paddingVertical: 10,
+    borderRadius: BorderRadius.xl,
+    ...Shadows.sm,
+  },
+  openDesktopBtnText: {
+    color: Colors.white,
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
   },
 });

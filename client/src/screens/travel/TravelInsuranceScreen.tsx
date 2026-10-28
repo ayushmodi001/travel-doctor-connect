@@ -77,19 +77,57 @@ export default function TravelInsuranceScreen() {
 
   if (isLoading) {
     return (
-      <View style={[styles.container, styles.centerContent, { paddingTop: insets.top }]}>
-        <ActivityIndicator size="large" color={Colors.primary[500]} />
-        <Text style={styles.loadingText}>Retrieving policy details…</Text>
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: Math.max(insets.top, 20) + Spacing[2] },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={20} color={Colors.neutral[800]} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle}>Travel Insurance</Text>
+            <Text style={styles.headerSub}>Policy vault & claim assistant</Text>
+          </View>
+        </View>
+        <View style={styles.centerContent}>
+          <ActivityIndicator size="large" color={Colors.primary[500]} />
+          <Text style={styles.loadingText}>Retrieving policy details…</Text>
+        </View>
       </View>
     );
   }
 
   if (error || !policy) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
+      <View style={styles.container}>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: Math.max(insets.top, 20) + Spacing[2] },
+          ]}
+        >
+          <TouchableOpacity
+            onPress={() => navigation.goBack()}
+            style={styles.backBtn}
+            accessibilityLabel="Go back"
+          >
+            <Ionicons name="arrow-back" size={20} color={Colors.neutral[800]} />
+          </TouchableOpacity>
+          <View style={styles.headerTitleWrap}>
+            <Text style={styles.headerTitle}>Travel Insurance</Text>
+            <Text style={styles.headerSub}>Policy vault & claim assistant</Text>
+          </View>
+        </View>
         <ErrorState
           title="Insurance Policy Unavailable"
-          message={error || 'Failed to retrieve travel insurance.'}
+          message={error || 'No active travel insurance policy recorded in the database.'}
           onRetry={loadPolicy}
         />
       </View>
@@ -192,7 +230,12 @@ export default function TravelInsuranceScreen() {
             before leaving the clinic or hospital:
           </Text>
 
-          {policy.claimChecklist.map((item, idx) => {
+          {((policy.claimChecklist && policy.claimChecklist.length > 0)
+            ? policy.claimChecklist
+            : (policy.checklistSteps
+              ? policy.checklistSteps.map(s => typeof s === 'string' ? s : `${s.title} – ${s.desc}`)
+              : [])
+          ).map((item, idx) => {
             const isChecked = !!checkedItems[idx];
             return (
               <TouchableOpacity

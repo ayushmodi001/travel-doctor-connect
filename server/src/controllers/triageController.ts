@@ -28,7 +28,10 @@ const GUARDRAIL_REFUSAL_MESSAGE =
 
 // Call Google Gemini API with system guardrails
 async function callGeminiTriage(apiKey: string, userQuery: string) {
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+  const models = process.env.GEMINI_MODELS
+    ? process.env.GEMINI_MODELS.split(',').map(m => m.trim())
+    : [process.env.GEMINI_MODEL || 'gemini-3.5-flash'];
+  let lastError: any = null;
 
   const systemPrompt = `You are MediBot, an empathetic, certified AI Clinical Triage Assistant for MediConnect.
 CRITICAL SAFETY & GUARDRAIL RULES:
@@ -48,39 +51,48 @@ CRITICAL SAFETY & GUARDRAIL RULES:
   "botReply": "string"
 }`;
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [
-        {
-          role: 'user',
-          parts: [
-            { text: `${systemPrompt}\n\nPatient Query: "${userQuery}"` }
-          ]
-        }
-      ],
-      generationConfig: {
-        temperature: 0.2,
-        maxOutputTokens: 800,
+  for (const model of models) {
+    try {
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: `${systemPrompt}\n\nPatient Query: "${userQuery}"` }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.2,
+            maxOutputTokens: 800,
+            responseMimeType: 'application/json',
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`[${model}] error (${response.status}): ${errorText.slice(0, 150)}`);
       }
-    }),
-  });
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Gemini API error (${response.status}): ${errorText.slice(0, 150)}`);
+      const json: any = await response.json();
+      const parts = json.candidates?.[0]?.content?.parts;
+      const textContent = parts?.find((p: any) => p.text && !p.thought)?.text || parts?.[0]?.text;
+      if (!textContent) {
+        throw new Error(`Empty response from [${model}]`);
+      }
+
+      const cleanJson = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanJson);
+    } catch (err: any) {
+      lastError = err;
+      console.warn(`[triageController] ${model} attempt failed: ${err.message}`);
+    }
   }
 
-  const json: any = await response.json();
-  const textContent = json.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!textContent) {
-    throw new Error('Empty response received from Gemini API');
-  }
-
-  // Parse JSON from text response
-  const cleanJson = textContent.replace(/```json/g, '').replace(/```/g, '').trim();
-  return JSON.parse(cleanJson);
+  throw lastError || new Error('All active Gemini models failed triage query.');
 }
 
 // POST /api/triage/assess

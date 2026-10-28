@@ -37,6 +37,13 @@ export const getTravelHub = async (req: Request, res: Response) => {
       return res.json({ success: true, data: countries[0] });
     }
 
+    if (countries.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No travel destinations found in database. Please generate destination intelligence using Gemini AI.',
+      });
+    }
+
     return res.json({
       success: true,
       count: countries.length,
@@ -87,6 +94,13 @@ export const getMedicalPhrases = async (req: Request, res: Response) => {
       flag: r.flag,
     }));
 
+    if (phrases.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No medical phrases found in database. Use Gemini AI to generate medical translations.',
+      });
+    }
+
     return res.json({
       success: true,
       count: phrases.length,
@@ -100,19 +114,23 @@ export const getMedicalPhrases = async (req: Request, res: Response) => {
 // POST /api/travel/translate
 export const translateCustomText = async (req: Request, res: Response) => {
   try {
-    const { text, targetLang } = req.body;
-    if (!text) {
+    const { text, targetLang, category } = req.body;
+    if (!text || !text.trim()) {
       return res.status(400).json({ success: false, message: 'Please provide text to translate' });
     }
 
+    const apiKey = (req.headers['x-ai-api-key'] as string) || req.body.apiKey;
+    const { AIAgentService } = await import('../services/aiAgentService');
+    const result = await AIAgentService.translateAndSavePhrase(
+      text.trim(),
+      targetLang || 'es',
+      category || 'emergency',
+      apiKey
+    );
+
     return res.json({
       success: true,
-      data: {
-        originalText: text,
-        targetLanguage: targetLang || 'es',
-        translatedText: `[Medical Translation (${targetLang || 'es'})]: ${text}`,
-        phonetic: (text as string).split(' ').map((w: string) => w.toUpperCase()).join('-'),
-      },
+      data: result,
     });
   } catch (error: any) {
     return res.status(500).json({ success: false, message: error.message || 'Translation service failed' });
@@ -138,14 +156,37 @@ export const getMedicineEquivalents = async (req: Request, res: Response) => {
     }
 
     const dbResult = await pool.query(queryText, params);
-    const list = dbResult.rows.map(r => ({
-      id: r.id,
-      genericName: r.generic_name,
-      primaryUse: r.primary_use,
-      commonHomeBrands: r.common_home_brands || [],
-      brandsByCountry: r.brands_by_country || {},
-      customsRestrictions: r.customs_restrictions || { isRestricted: false },
-    }));
+    const list = dbResult.rows.map(r => {
+      let homeBrands = r.common_home_brands;
+      if (typeof homeBrands === 'string') {
+        try { homeBrands = JSON.parse(homeBrands); } catch { homeBrands = [homeBrands]; }
+      }
+      let brandsByCountry = r.brands_by_country;
+      if (typeof brandsByCountry === 'string') {
+        try { brandsByCountry = JSON.parse(brandsByCountry); } catch { brandsByCountry = {}; }
+      }
+      let customs = r.customs_restrictions;
+      if (typeof customs === 'string') {
+        try { customs = JSON.parse(customs); } catch { customs = { isRestricted: false }; }
+      }
+
+      return {
+        id: r.id,
+        genericName: r.generic_name,
+        primaryUse: r.primary_use,
+        commonHomeBrands: Array.isArray(homeBrands) ? homeBrands : [],
+        brandsByCountry: (typeof brandsByCountry === 'object' && brandsByCountry !== null) ? brandsByCountry : {},
+        customsRestrictions: (typeof customs === 'object' && customs !== null) ? customs : { isRestricted: false },
+        otcAvailability: r.otc_availability || 'Available over-the-counter or with standard prescription abroad.',
+      };
+    });
+
+    if (list.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No medicine equivalents found in database. Use Gemini AI to research international medications.',
+      });
+    }
 
     return res.json({
       success: true,
@@ -153,7 +194,7 @@ export const getMedicineEquivalents = async (req: Request, res: Response) => {
       data: list,
     });
   } catch (error: any) {
-    return res.status(500).json({ success: false, message: error.message || 'Error loading medicine equivalents' });
+    return res.status(500).json({ success: false, message: error.message || 'Error fetching medicine equivalents' });
   }
 };
 

@@ -20,7 +20,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Location from 'expo-location';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -32,10 +32,10 @@ import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme'
 import { EmptyState } from '../../components/ui/primitives';
 import { ErrorState } from '../../components/ui/ErrorState';
 import { TicketPassCard } from '../../components/home/TicketPassCard';
-import { VitalsSummary } from '../../components/home/VitalsSummary';
+import { VitalsSummary, UserVitalsData } from '../../components/home/VitalsSummary';
 import AppointmentItem from '../../components/AppointmentItem';
 import DoctorCard from '../../components/DoctorCard';
-import { DoctorService } from '../../services/api';
+import { DoctorService, UserService } from '../../services/api';
 import { i18n } from '../../localization/i18n';
 
 type NavProp = NativeStackNavigationProp<HomeStackParamList>;
@@ -98,6 +98,7 @@ const HomeScreen: React.FC = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [isLoadingDoctors, setIsLoadingDoctors] = useState(true);
   const [doctorError, setDoctorError] = useState<string | null>(null);
+  const [userVitals, setUserVitals] = useState<UserVitalsData | null>(null);
   const [detectedLocation, setDetectedLocation] = useState<{
     countryName: string;
     flag: string;
@@ -161,16 +162,30 @@ const HomeScreen: React.FC = () => {
       const result = await DoctorService.getDoctors();
       setDoctors(result);
     } catch (err: any) {
-      // REQUIREMENT 2: DO NOT fall back silently to fake mock data. Show proper error.
       setDoctorError(err.message || 'Could not load doctors from healthcare server.');
     } finally {
       setIsLoadingDoctors(false);
     }
   }, []);
 
+  const loadVitals = useCallback(async () => {
+    try {
+      const data = await UserService.getVitals();
+      setUserVitals(data);
+    } catch {
+      setUserVitals(null);
+    }
+  }, []);
+
   useEffect(() => {
     loadDoctors();
   }, [loadDoctors]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadVitals();
+    }, [loadVitals])
+  );
 
   const upcomingAppointments = appointments
     .filter(a => a.status === 'confirmed' || a.status === 'pending')
@@ -279,7 +294,8 @@ const HomeScreen: React.FC = () => {
 
         {/* Daily Vitals */}
         <VitalsSummary
-          onPressVital={() => {
+          vitals={userVitals}
+          onPressVital={(vital) => {
             navigation.navigate('SymptomTriage');
           }}
         />

@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 import { getDbPool } from '../config/db';
 
 // GET /api/dashboard
-export const getDashboardSummary = async (_req: Request, res: Response) => {
+export const getDashboardSummary = async (req: Request, res: Response) => {
   try {
     const pool = getDbPool();
 
@@ -53,8 +53,12 @@ export const getDashboardSummary = async (_req: Request, res: Response) => {
       currency: r.currency,
     }));
 
-    // 3. User Vitals from Neon DB
-    const vRes = await pool.query('SELECT * FROM user_vitals ORDER BY created_at DESC LIMIT 1');
+    // 3. User Vitals from Neon DB (scoped to specific user)
+    const userId = (req.headers['x-user-id'] as string) || '';
+    let vRes = { rows: [] as any[] };
+    if (userId) {
+      vRes = await pool.query('SELECT * FROM user_vitals WHERE user_id = $1 ORDER BY created_at DESC LIMIT 1', [userId]);
+    }
     const vitalsData = vRes.rows.length > 0 ? {
       heartRate: vRes.rows[0].heart_rate,
       bloodPressure: vRes.rows[0].blood_pressure,

@@ -13,6 +13,7 @@ import {
   TextInput,
   StyleSheet,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -31,13 +32,14 @@ export default function MedicineEquivalentsScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isResearchingAI, setIsResearchingAI] = useState(false);
 
   const loadMedicines = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await TravelService.getMedicineEquivalents();
-      setMedicines(data);
+      setMedicines(Array.isArray(data) ? data : []);
     } catch (err: any) {
       setError(err.message || 'Unable to connect to pharmaceutical database.');
     } finally {
@@ -49,17 +51,53 @@ export default function MedicineEquivalentsScreen() {
     loadMedicines();
   }, [loadMedicines]);
 
-  const filteredMeds = useMemo(() => {
-    if (!searchQuery.trim()) return medicines;
-    const q = searchQuery.toLowerCase();
-    return medicines.filter(med => {
-      const matchesGeneric = med.genericName.toLowerCase().includes(q);
-      const matchesUse = med.primaryUse.toLowerCase().includes(q);
-      const matchesBrands = med.commonHomeBrands.some(b =>
-        b.toLowerCase().includes(q)
+  const handleResearchWithGemini = async (nameToResearch: string) => {
+    const medName = (nameToResearch || searchQuery).trim();
+    if (!medName) {
+      Alert.alert('Enter Medicine', 'Please type a medication or symptom to research (e.g., Metformin, Aspirin, Azithromycin).');
+      return;
+    }
+
+    setIsResearchingAI(true);
+    try {
+      const newMed = await TravelService.generateMedicineAI(medName);
+      setMedicines(prev => {
+        const filtered = prev.filter(m => m.id !== newMed.id);
+        return [newMed, ...filtered];
+      });
+      setSearchQuery('');
+      Alert.alert(
+        '✨ Medicine Researched with Gemini',
+        `Generated international brand equivalents for ${newMed.genericName} across US, UK, France, Germany, Spain, and Japan!`
       );
-      const matchesCountryBrands = Object.values(med.brandsByCountry).some(b =>
-        b.toLowerCase().includes(q)
+    } catch (err: any) {
+      Alert.alert('AI Research Error', err.message || 'Failed to research medicine with Gemini.');
+    } finally {
+      setIsResearchingAI(false);
+    }
+  };
+
+  const filteredMeds = useMemo(() => {
+    const list = Array.isArray(medicines) ? medicines : [];
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    return list.filter(med => {
+      if (!med) return false;
+      const matchesGeneric = (med.genericName || '').toLowerCase().includes(q);
+      const matchesUse = (med.primaryUse || '').toLowerCase().includes(q);
+      const homeBrands = Array.isArray(med.commonHomeBrands)
+        ? med.commonHomeBrands
+        : typeof med.commonHomeBrands === 'string'
+        ? [med.commonHomeBrands]
+        : [];
+      const matchesBrands = homeBrands.some(b =>
+        typeof b === 'string' && b.toLowerCase().includes(q)
+      );
+      const countryBrands = typeof med.brandsByCountry === 'object' && med.brandsByCountry !== null
+        ? Object.values(med.brandsByCountry)
+        : [];
+      const matchesCountryBrands = countryBrands.some(b =>
+        typeof b === 'string' && b.toLowerCase().includes(q)
       );
       return matchesGeneric || matchesUse || matchesBrands || matchesCountryBrands;
     });
@@ -139,95 +177,141 @@ export default function MedicineEquivalentsScreen() {
             message={error}
             onRetry={loadMedicines}
           />
-        ) : filteredMeds.length === 0 ? (
+        ) : (!Array.isArray(filteredMeds) || filteredMeds.length === 0) ? (
           <View style={styles.emptyWrap}>
-            <Ionicons name="medical-outline" size={40} color={Colors.neutral[300]} />
-            <Text style={styles.emptyTitle}>No medication found</Text>
-            <Text style={styles.emptySub}>
-              Try searching by brand name (e.g., "Tylenol") or generic name ("Ibuprofen").
-            </Text>
+            <View style={styles.aiResearchBox}>
+              <View style={styles.aiBadgeRow}>
+                <Ionicons name="sparkles" size={14} color="#7C3AED" />
+                <Text style={styles.aiBadgeText}>GEMINI PHARMA AI RESEARCH</Text>
+              </View>
+              <Text style={styles.aiResearchTitle}>
+                {searchQuery.trim() ? `Research "${searchQuery.trim()}" abroad` : 'Medicine not in library?'}
+              </Text>
+              <Text style={styles.aiResearchSub}>
+                Use Gemini to identify local brand equivalents in US, UK, France, Germany, Spain, and Japan, plus foreign customs alerts.
+              </Text>
+              <TouchableOpacity
+                style={[styles.aiResearchBtn, isResearchingAI && { opacity: 0.7 }]}
+                onPress={() => handleResearchWithGemini(searchQuery)}
+                disabled={isResearchingAI}
+                activeOpacity={0.85}
+              >
+                {isResearchingAI ? (
+                  <ActivityIndicator size="small" color={Colors.white} />
+                ) : (
+                  <>
+                    <Ionicons name="sparkles" size={15} color={Colors.white} />
+                    <Text style={styles.aiResearchBtnText}>
+                      {searchQuery.trim() ? `Research "${searchQuery.trim()}" with Gemini` : 'Research with Gemini AI'}
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
-          filteredMeds.map(med => (
-            <View key={med.id} style={styles.medCard}>
-              {/* Card Header */}
-              <View style={styles.medCardTop}>
-                <View style={styles.medIconCircle}>
-                  <Ionicons name="medkit" size={20} color={Colors.primary[500]} />
-                </View>
-                <View style={styles.medTitleBox}>
-                  <Text style={styles.medGenericName}>{med.genericName}</Text>
-                  <Text style={styles.medPrimaryUse}>{med.primaryUse}</Text>
-                </View>
-              </View>
+          (Array.isArray(filteredMeds) ? filteredMeds : []).map((med, medIdx) => {
+            if (!med) return null;
 
-              {/* Home Brands */}
-              <View style={styles.homeBrandsRow}>
-                <Text style={styles.homeBrandsLabel}>Common Home Brands:</Text>
-                <Text style={styles.homeBrandsList}>
-                  {med.commonHomeBrands.join(' • ')}
-                </Text>
-              </View>
+            const homeBrandsList = Array.isArray(med.commonHomeBrands)
+              ? med.commonHomeBrands.join(' • ')
+              : typeof med.commonHomeBrands === 'string'
+              ? med.commonHomeBrands
+              : 'Over-the-counter international equivalent';
 
-              {/* International Equivalents Table */}
-              <View style={styles.equivalentsBox}>
-                <Text style={styles.equivalentsTitle}>Foreign Brand Names:</Text>
-                
-                <View style={styles.countryRow}>
-                  <Text style={styles.countryBadge}>🇺🇸 USA</Text>
-                  <Text style={styles.countryBrandText}>{med.brandsByCountry.US}</Text>
-                </View>
+            const brands = (typeof med.brandsByCountry === 'object' && med.brandsByCountry !== null)
+              ? med.brandsByCountry
+              : ({} as Record<string, string>);
 
-                <View style={styles.countryRow}>
-                  <Text style={styles.countryBadge}>🇬🇧 UK</Text>
-                  <Text style={styles.countryBrandText}>{med.brandsByCountry.UK}</Text>
-                </View>
+            const customs = (typeof med.customsRestrictions === 'object' && med.customsRestrictions !== null)
+              ? med.customsRestrictions
+              : { isRestricted: false };
 
-                <View style={styles.countryRow}>
-                  <Text style={styles.countryBadge}>🇫🇷 France</Text>
-                  <Text style={styles.countryBrandText}>{med.brandsByCountry.FR}</Text>
+            const isRestricted = Boolean(customs.isRestricted);
+            const warningNote = customs.warningNote || (customs as any).notes || null;
+            const otcText = med.otcAvailability || 'Consult licensed pharmacist abroad for local OTC regulations.';
+
+            return (
+              <View key={med.id || `med-${medIdx}`} style={styles.medCard}>
+                {/* Card Header */}
+                <View style={styles.medCardTop}>
+                  <View style={styles.medIconCircle}>
+                    <Ionicons name="medkit" size={20} color={Colors.primary[500]} />
+                  </View>
+                  <View style={styles.medTitleBox}>
+                    <Text style={styles.medGenericName}>{med.genericName || 'Medication'}</Text>
+                    <Text style={styles.medPrimaryUse}>{med.primaryUse || 'General Therapeutic Use'}</Text>
+                  </View>
                 </View>
 
-                <View style={styles.countryRow}>
-                  <Text style={styles.countryBadge}>🇪🇸 Spain</Text>
-                  <Text style={styles.countryBrandText}>{med.brandsByCountry.ES}</Text>
-                </View>
-
-                <View style={styles.countryRow}>
-                  <Text style={styles.countryBadge}>🇩🇪 Germany</Text>
-                  <Text style={styles.countryBrandText}>{med.brandsByCountry.DE}</Text>
-                </View>
-
-                <View style={styles.countryRow}>
-                  <Text style={styles.countryBadge}>🇯🇵 Japan</Text>
-                  <Text
-                    style={[
-                      styles.countryBrandText,
-                      med.customsRestrictions.isRestricted && styles.restrictedText,
-                    ]}
-                  >
-                    {med.brandsByCountry.JP}
+                {/* Home Brands */}
+                <View style={styles.homeBrandsRow}>
+                  <Text style={styles.homeBrandsLabel}>Common Home Brands:</Text>
+                  <Text style={styles.homeBrandsList}>
+                    {homeBrandsList}
                   </Text>
                 </View>
-              </View>
 
-              {/* Customs Warning Note if any */}
-              {med.customsRestrictions.warningNote && (
-                <View style={styles.medRestrictionWarning}>
-                  <Ionicons name="warning" size={16} color={Colors.primary[600]} />
-                  <Text style={styles.medRestrictionText}>
-                    {med.customsRestrictions.warningNote}
-                  </Text>
+                {/* International Equivalents Table */}
+                <View style={styles.equivalentsBox}>
+                  <Text style={styles.equivalentsTitle}>Foreign Brand Names:</Text>
+                  
+                  <View style={styles.countryRow}>
+                    <Text style={styles.countryBadge}>🇺🇸 USA</Text>
+                    <Text style={styles.countryBrandText}>{brands.US || 'Available'}</Text>
+                  </View>
+
+                  <View style={styles.countryRow}>
+                    <Text style={styles.countryBadge}>🇬🇧 UK</Text>
+                    <Text style={styles.countryBrandText}>{brands.UK || 'Available'}</Text>
+                  </View>
+
+                  <View style={styles.countryRow}>
+                    <Text style={styles.countryBadge}>🇫🇷 France</Text>
+                    <Text style={styles.countryBrandText}>{brands.FR || 'Available'}</Text>
+                  </View>
+
+                  <View style={styles.countryRow}>
+                    <Text style={styles.countryBadge}>🇪🇸 Spain</Text>
+                    <Text style={styles.countryBrandText}>{brands.ES || 'Available'}</Text>
+                  </View>
+
+                  <View style={styles.countryRow}>
+                    <Text style={styles.countryBadge}>🇩🇪 Germany</Text>
+                    <Text style={styles.countryBrandText}>{brands.DE || 'Available'}</Text>
+                  </View>
+
+                  <View style={styles.countryRow}>
+                    <Text style={styles.countryBadge}>🇯🇵 Japan</Text>
+                    <Text
+                      style={[
+                        styles.countryBrandText,
+                        isRestricted && styles.restrictedText,
+                      ]}
+                    >
+                      {brands.JP || (isRestricted ? 'RESTRICTED / BANNED' : 'Available')}
+                    </Text>
+                  </View>
                 </View>
-              )}
 
-              {/* OTC Availability Footer */}
-              <View style={styles.otcFooter}>
-                <Ionicons name="shield-checkmark-outline" size={14} color={Colors.neutral[500]} />
-                <Text style={styles.otcFooterText}>{med.otcAvailability}</Text>
+                {/* Customs Warning Note if any */}
+                {warningNote && (
+                  <View style={styles.medRestrictionWarning}>
+                    <Ionicons name="warning" size={16} color={Colors.primary[600]} />
+                    <Text style={styles.medRestrictionText}>
+                      {warningNote}
+                    </Text>
+                  </View>
+                )}
+
+                {/* OTC Availability Footer */}
+                <View style={styles.otcFooter}>
+                  <Ionicons name="shield-checkmark-outline" size={14} color={Colors.neutral[500]} />
+                  <Text style={styles.otcFooterText}>{otcText}</Text>
+                </View>
               </View>
-            </View>
-          ))
+            );
+          })
         )}
       </ScrollView>
     </View>
@@ -470,5 +554,61 @@ const styles = StyleSheet.create({
     color: Colors.neutral[500],
     textAlign: 'center',
     marginTop: 4,
+  },
+  aiResearchBox: {
+    backgroundColor: '#FAF5FF',
+    borderWidth: 1.5,
+    borderColor: '#E9D5FF',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing[4],
+    width: '100%',
+    alignItems: 'center',
+    ...Shadows.sm,
+  },
+  aiBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F3E8FF',
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 3,
+    borderRadius: BorderRadius.full,
+    marginBottom: Spacing[2],
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#7C3AED',
+    letterSpacing: 0.6,
+  },
+  aiResearchTitle: {
+    fontSize: Typography.fontSize.base,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.neutral[900],
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  aiResearchSub: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[600],
+    textAlign: 'center',
+    lineHeight: 18,
+    marginBottom: Spacing[4],
+  },
+  aiResearchBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing[2],
+    backgroundColor: '#7C3AED',
+    paddingHorizontal: Spacing[4],
+    paddingVertical: Spacing[3],
+    borderRadius: BorderRadius.xl,
+    ...Shadows.sm,
+  },
+  aiResearchBtnText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.white,
   },
 });

@@ -16,6 +16,7 @@ import path from 'path';
 import mapsRoutes from './routes/mapsRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import storageRoutes from './routes/storageRoutes';
+import aiRoutes from './routes/aiRoutes';
 
 const app: Application = express();
 
@@ -44,7 +45,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Health check endpoint with Neon DB diagnostic
-app.get('/api/health', async (_req: Request, res: Response) => {
+app.get(['/api/health', '/health'], async (_req: Request, res: Response) => {
   const dbHealth = await checkDbHealth();
   res.json({
     status: 'ok',
@@ -72,6 +73,8 @@ app.use('/api/upload', storageRoutes);
 app.use('/api/triage', triageRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/maps', mapsRoutes);
+app.use('/api/ai', aiRoutes);
+
 
 // Error Handling
 app.use(notFound);
