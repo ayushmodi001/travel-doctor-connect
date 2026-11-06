@@ -211,12 +211,16 @@ export interface MedicineEquivalent {
   primaryUse: string;
   commonHomeBrands: string[];
   brandsByCountry: {
-    US: string;
-    UK: string;
-    FR: string;
-    ES: string;
-    DE: string;
-    JP: string;
+    US?: string;
+    UK?: string;
+    FR?: string;
+    ES?: string;
+    DE?: string;
+    JP?: string;
+    IN?: string;
+    IT?: string;
+    TH?: string;
+    [key: string]: string | undefined;
   };
   customsRestrictions: {
     isRestricted: boolean;
@@ -273,7 +277,7 @@ export type MainTabParamList = {
 export type HomeStackParamList = {
   Home: undefined;
   SymptomTriage: undefined;
-  DoctorList: { specialty?: string; consultationType?: ConsultationType };
+  DoctorList: { specialty?: string; consultationType?: ConsultationType; country?: string; countryCode?: string };
   DoctorProfile: { doctorId: string };
   BookAppointment: { doctorId: string; slotId?: string };
   Chat: { sessionId: string; doctorId: string };
@@ -281,18 +285,44 @@ export type HomeStackParamList = {
   Emergency: undefined;
   OpenMaps: { initialCategory?: string; doctorId?: string; latitude?: number; longitude?: number } | undefined;
   TravelHub: undefined;
-  MedicalTranslator: { initialCategory?: string } | undefined;
-  MedicineEquivalents: undefined;
-  TravelInsurance: undefined;
+  MedicalTranslator: {
+    initialCategory?: string;
+    initialLanguage?: string;
+    countryName?: string;
+    countryCode?: string;
+    flag?: string;
+  } | undefined;
+  MedicineEquivalents: {
+    countryCode?: string;
+    countryName?: string;
+    flag?: string;
+  } | undefined;
+  TravelInsurance: {
+    countryCode?: string;
+    countryName?: string;
+  } | undefined;
   FamilyTracker: undefined;
 };
 
 export type TravelStackParamList = {
   TravelHub: undefined;
-  MedicalTranslator: { initialCategory?: string; initialLanguage?: string } | undefined;
-  MedicineEquivalents: undefined;
-  TravelInsurance: undefined;
-  DoctorList: { specialty?: string; consultationType?: ConsultationType };
+  MedicalTranslator: {
+    initialCategory?: string;
+    initialLanguage?: string;
+    countryName?: string;
+    countryCode?: string;
+    flag?: string;
+  } | undefined;
+  MedicineEquivalents: {
+    countryCode?: string;
+    countryName?: string;
+    flag?: string;
+  } | undefined;
+  TravelInsurance: {
+    countryCode?: string;
+    countryName?: string;
+  } | undefined;
+  DoctorList: { specialty?: string; consultationType?: ConsultationType; country?: string; countryCode?: string };
   OpenMaps: { initialCategory?: string; doctorId?: string; latitude?: number; longitude?: number } | undefined;
 };
 

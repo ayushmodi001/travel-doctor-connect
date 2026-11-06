@@ -29,7 +29,7 @@ const LANGUAGE_FLAGS: Record<string, { name: string; flag: string }> = {
 async function callActiveGemini(prompt: string, apiKey: string): Promise<any> {
   const configuredModels = process.env.GEMINI_MODELS
     ? process.env.GEMINI_MODELS.split(',').map(m => m.trim())
-    : [process.env.GEMINI_MODEL || 'gemini-3.5-flash'];
+    : [process.env.GEMINI_MODEL || 'gemini-2.5-flash'];
   let lastErr: any = null;
 
   for (const model of configuredModels) {
@@ -257,6 +257,7 @@ Output strictly valid JSON with this exact schema:
   "primaryUse": "Primary medical indications and symptoms treated",
   "commonHomeBrands": ["Common international brand names"],
   "brandsByCountry": {
+    "IN": "India brand names (e.g. Dolo, Crocin, Calpol, etc.)",
     "US": "US brand names",
     "UK": "UK brand names",
     "FR": "France brand names",

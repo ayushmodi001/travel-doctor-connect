@@ -37,12 +37,15 @@ export const DoctorDashboardPage: React.FC = () => {
   const [prescribedMed, setPrescribedMed] = useState('Salbutamol Inhaler 100mcg (Equivalent: Sultanol Inhaler Japan)');
   const [noteSaved, setNoteSaved] = useState(false);
 
+  const [error, setError] = useState<string | null>(null);
+
   useEffect(() => {
     loadDoctorData();
   }, []);
 
   const loadDoctorData = async () => {
     setIsLoading(true);
+    setError(null);
     try {
       const [appts, patientList] = await Promise.all([
         api.getAppointments(),
@@ -55,6 +58,7 @@ export const DoctorDashboardPage: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error fetching doctor data:', err);
+      setError(err.message || 'Error connecting to database');
     } finally {
       setIsLoading(false);
     }
@@ -87,6 +91,40 @@ export const DoctorDashboardPage: React.FC = () => {
       <Header portalType="doctor" />
 
       <main style={{ maxWidth: '1440px', margin: '0 auto', padding: '1.75rem 1.5rem 4rem' }}>
+        {error && (
+          <div style={{
+            padding: '1rem 1.25rem',
+            backgroundColor: '#FEF2F2',
+            border: '1px solid #FCA5A5',
+            borderRadius: '12px',
+            color: '#991B1B',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <AlertTriangle size={20} color="#DC2626" />
+              <span><strong>Database Error:</strong> {error}</span>
+            </div>
+            <button
+              onClick={loadDoctorData}
+              style={{
+                backgroundColor: '#DC2626',
+                color: '#FFFFFF',
+                border: 'none',
+                padding: '0.4rem 0.9rem',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 600,
+                fontSize: '0.85rem',
+              }}
+            >
+              Retry Connection
+            </button>
+          </div>
+        )}
+
         {/* Doctor Shift Status Bar */}
         <div className="glass-panel" style={{
           padding: '1.25rem 1.5rem',

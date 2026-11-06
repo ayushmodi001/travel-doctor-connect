@@ -70,7 +70,15 @@ const DoctorCard: React.FC<DoctorCardProps> = ({
 
         <Text style={styles.specialty} numberOfLines={1}>{doctor.specialty}</Text>
         {!isCompact && (
-          <Text style={styles.hospital} numberOfLines={1}>{doctor.hospital}</Text>
+          <>
+            <Text style={styles.hospital} numberOfLines={1}>{doctor.hospital}</Text>
+            <View style={styles.locationRow}>
+              <Ionicons name="location-sharp" size={11} color={Colors.primary[600]} />
+              <Text style={styles.locationText} numberOfLines={1}>
+                {doctor.location?.city ? `${doctor.location.city}, ${doctor.location.country}` : (doctor.location?.address || 'International Practice')}
+              </Text>
+            </View>
+          </>
         )}
 
         {/* Stats row */}
@@ -216,7 +224,18 @@ const styles = StyleSheet.create({
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamily.medium,
     color: Colors.neutral[500],
+    marginBottom: 2,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     marginBottom: Spacing[2],
+  },
+  locationText: {
+    fontSize: 11,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.primary[700],
   },
 
   // Available pill

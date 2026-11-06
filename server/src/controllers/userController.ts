@@ -499,70 +499,10 @@ export const getAllPatients = async (req: Request, res: Response) => {
     }
 
     if (patients.length === 0) {
-      patients = [
-        {
-          id: 'traveler-ayush-01',
-          name: 'Ayush Modi',
-          email: 'ayush@example.com',
-          phone: '+91 98231 45678',
-          role: 'patient',
-          bloodGroup: 'O+',
-          allergies: ['Penicillin (Severe Anaphylaxis Risk)', 'Aspirin/NSAIDs (Asthma Exacerbation)'],
-          medicalHistory: ['Mild Intermittent Asthma', 'Motion Sickness'],
-          emergencyContact: {
-            name: 'Priya Modi',
-            phone: '+91 98765 43210',
-            relation: 'Parent / Primary Guardian',
-          },
-          countryOfOrigin: 'India',
-          currentLocation: 'Shibuya, Tokyo, Japan (GPS: 35.6580° N, 139.7016° E)',
-          passportNumber: 'Z8492041 (Republic of India)',
-          passportExpiry: '2031-08-14',
-          travelDocumentStatus: 'Verified / Valid Tourist e-Visa',
-          vitals: {
-            heartRate: '72 bpm',
-            bloodPressure: '118/78 mmHg',
-            bloodOxygen: '99%',
-          },
-          insurance: {
-            provider: 'Allianz Worldwide Care International',
-            policyNumber: 'ALZ-INTL-90248-JP',
-            coverageLimit: '$500,000 USD (Full Inpatient + Emergency Evacuation)',
-            status: 'Active Verified',
-          },
-        },
-        {
-          id: 'traveler-sarah-02',
-          name: 'Sarah Jenkins',
-          email: 'sarah.j@travelcare.io',
-          phone: '+1 (415) 890-2134',
-          role: 'patient',
-          bloodGroup: 'A-',
-          allergies: ['Sulfa Drugs (Skin Rash)', 'Peanuts'],
-          medicalHistory: ['Type 2 Diabetes (Diet controlled)'],
-          emergencyContact: {
-            name: 'Robert Jenkins',
-            phone: '+1 (415) 890-9988',
-            relation: 'Spouse',
-          },
-          countryOfOrigin: 'United States',
-          currentLocation: 'Shinjuku, Tokyo, Japan',
-          passportNumber: 'USA-672109841',
-          passportExpiry: '2029-04-20',
-          travelDocumentStatus: 'Verified',
-          vitals: {
-            heartRate: '78 bpm',
-            bloodPressure: '124/82 mmHg',
-            bloodOxygen: '98%',
-          },
-          insurance: {
-            provider: 'GeoBlue Voyager Choice',
-            policyNumber: 'GB-99381-EX',
-            coverageLimit: '$1,000,000 USD',
-            status: 'Active Verified',
-          },
-        },
-      ];
+      return res.status(404).json({
+        success: false,
+        message: 'No registered patients found in database.',
+      });
     }
 
     return res.json({ success: true, data: patients });

@@ -30,7 +30,7 @@ const GUARDRAIL_REFUSAL_MESSAGE =
 async function callGeminiTriage(apiKey: string, userQuery: string) {
   const models = process.env.GEMINI_MODELS
     ? process.env.GEMINI_MODELS.split(',').map(m => m.trim())
-    : [process.env.GEMINI_MODEL || 'gemini-3.5-flash'];
+    : [process.env.GEMINI_MODEL || 'gemini-2.5-flash'];
   let lastError: any = null;
 
   const systemPrompt = `You are MediBot, an empathetic, certified AI Clinical Triage Assistant for MediConnect.

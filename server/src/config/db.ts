@@ -10,7 +10,6 @@
  */
 
 import { Pool, PoolConfig, QueryResult, QueryResultRow } from 'pg';
-import { MOCK_DOCTORS, MOCK_APPOINTMENTS, MOCK_EMERGENCY_SERVICES } from '../data/mockData';
 
 let pool: Pool | null = null;
 let isConnected = false;
@@ -364,60 +363,7 @@ export async function initDatabase(): Promise<void> {
       );
     `);
 
-    // Seed doctors if empty
-    const docCheck = await currentPool.query('SELECT count(*) as count FROM doctors');
-    if (parseInt(docCheck.rows[0].count, 10) === 0) {
-      console.log('[Neon DB] Seeding initial doctors into Neon DB...');
-      for (const d of MOCK_DOCTORS) {
-        await currentPool.query(
-          `INSERT INTO doctors (id, name, specialty, hospital, location, rating, review_count, experience, fee, currency, profile_image, about, qualifications, languages, available_slots, is_available_now, consultation_type, verified)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
-           ON CONFLICT (id) DO NOTHING`,
-          [
-            d.id,
-            d.name,
-            d.specialty,
-            d.hospital,
-            JSON.stringify(d.location),
-            d.rating,
-            d.reviewCount,
-            d.experience,
-            d.fee,
-            d.currency,
-            d.profileImage,
-            d.about,
-            JSON.stringify(d.qualifications),
-            JSON.stringify(d.languages),
-            JSON.stringify(d.availableSlots),
-            d.isAvailableNow,
-            JSON.stringify(d.consultationType),
-            d.verified,
-          ]
-        );
-      }
-    }
-
-    // Seed emergency facilities if empty
-    const emCheck = await currentPool.query('SELECT count(*) as count FROM emergency_services');
-    if (parseInt(emCheck.rows[0].count, 10) === 0) {
-      console.log('[Neon DB] Seeding emergency facilities into Neon DB...');
-      for (const e of MOCK_EMERGENCY_SERVICES) {
-        await currentPool.query(
-          `INSERT INTO emergency_services (id, name, type, phone, address, location, available24h)
-           VALUES ($1, $2, $3, $4, $5, $6, $7)
-           ON CONFLICT (id) DO NOTHING`,
-          [
-            e.id,
-            e.name,
-            e.type,
-            e.phone,
-            e.address,
-            JSON.stringify(e.location),
-            e.available24h,
-          ]
-        );
-      }
-    }
+    // Real clinical doctors, emergency services, destinations, phrases, and medicines are populated directly via Google Gemini AI.
 
     // Note: Travel destinations, medical phrases, and medicine equivalents are generated dynamically via Gemini AI.
 

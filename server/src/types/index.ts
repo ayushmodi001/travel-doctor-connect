@@ -141,18 +141,21 @@ export interface MedicineEquivalent {
 
 export interface TravelInsurancePolicy {
   policyNumber: string;
+  insuredName?: string;
   provider: string;
-  planName: string;
-  status: 'active' | 'expired' | 'pending';
-  validFrom: string;
-  validTo: string;
+  planName?: string;
+  status?: string;
+  validFrom?: string;
+  validTo?: string;
+  validUntil?: string;
   emergencyAssistancePhone: string;
-  claimsEmail: string;
+  claimsEmail?: string;
   coverageLimit: string;
-  deductible: string;
-  emergencyEvacuationLimit: string;
-  coveredCountries: string[];
-  checklistSteps: {
+  deductible?: string;
+  emergencyEvacuationLimit?: string;
+  coveredCountries?: string[];
+  claimChecklist?: string[];
+  checklistSteps?: {
     title: string;
     desc: string;
     required: boolean;

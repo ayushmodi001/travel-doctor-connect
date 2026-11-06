@@ -108,26 +108,30 @@ export const api = {
 
   // AI Agent Scraping & Harvester Trigger
   async triggerAiScrape(taskType: string, destination: string = 'Tokyo'): Promise<{ success: boolean; message: string; results?: any }> {
-    try {
-      const res = await request<{ success: boolean; message: string; data?: any }>('/ai/translate', {
-        method: 'POST',
-        body: JSON.stringify({
-          text: `Harvest emergency medical resources and equivalents for ${destination}`,
-          sourceLang: 'en',
-          targetLang: 'ja',
-        }),
-      });
-      return {
-        success: true,
-        message: `AI Agent successfully harvested fresh ${taskType} data for ${destination} destination.`,
-        results: res.data,
-      };
-    } catch {
-      // Return simulated success if offline AI mock
-      return {
-        success: true,
-        message: `AI Agent crawler scheduled and synchronized with Neon DB for ${destination}.`,
+    let endpoint = '/ai/harvest-destination';
+    let body: any = { countryCode: destination === 'Tokyo' ? 'JP' : destination };
+
+    if (taskType.toLowerCase().includes('medicine') || taskType.toLowerCase().includes('pharm')) {
+      endpoint = '/ai/harvest-medicines';
+      body = {};
+    } else if (taskType.toLowerCase().includes('phrase') || taskType.toLowerCase().includes('translat')) {
+      endpoint = '/ai/translate';
+      body = {
+        text: 'Where is the nearest hospital and emergency department?',
+        targetLang: 'ja',
+        category: 'emergency',
       };
     }
+
+    const res = await request<{ success: boolean; message: string; data?: any }>(endpoint, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    });
+
+    return {
+      success: res.success,
+      message: res.message || `AI Agent harvested fresh clinical data for ${destination}.`,
+      results: res.data,
+    };
   },
 };

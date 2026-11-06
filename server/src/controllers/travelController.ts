@@ -199,7 +199,7 @@ export const getMedicineEquivalents = async (req: Request, res: Response) => {
 };
 
 // GET /api/travel/insurance
-export const getTravelInsurance = async (_req: Request, res: Response) => {
+export const getTravelInsurance = async (req: Request, res: Response) => {
   try {
     const pool = getDbPool();
 
@@ -212,7 +212,24 @@ export const getTravelInsurance = async (_req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'No travel insurance policy found in database.' });
     }
 
+    // Look up traveler name from users table
+    const userId = (req.headers['x-user-id'] as string) || (req.query.userId as string);
+    let insuredName = 'Registered Policyholder';
+    if (userId) {
+      const userRes = await pool.query('SELECT name FROM users WHERE id = $1', [userId]);
+      if (userRes.rows.length > 0 && userRes.rows[0].name) {
+        insuredName = userRes.rows[0].name;
+      }
+    } else {
+      const defaultUserRes = await pool.query("SELECT name FROM users WHERE role = 'patient' LIMIT 1");
+      if (defaultUserRes.rows.length > 0 && defaultUserRes.rows[0].name) {
+        insuredName = defaultUserRes.rows[0].name;
+      }
+    }
+
     const r = dbResult.rows[0];
+    const steps = Array.isArray(r.checklist_steps) ? r.checklist_steps : [];
+
     return res.json({
       success: true,
       data: {
@@ -222,13 +239,16 @@ export const getTravelInsurance = async (_req: Request, res: Response) => {
         status: r.status,
         validFrom: r.valid_from,
         validTo: r.valid_to,
+        validUntil: r.valid_to,
+        insuredName,
         emergencyAssistancePhone: r.emergency_assistance_phone,
         claimsEmail: r.claims_email,
         coverageLimit: r.coverage_limit,
         deductible: r.deductible,
         emergencyEvacuationLimit: r.emergency_evacuation_limit,
         coveredCountries: r.covered_countries || [],
-        checklistSteps: r.checklist_steps || [],
+        checklistSteps: steps,
+        claimChecklist: steps.map((s: any) => typeof s === 'string' ? s : `${s.title} – ${s.desc}`),
       },
     });
   } catch (error: any) {

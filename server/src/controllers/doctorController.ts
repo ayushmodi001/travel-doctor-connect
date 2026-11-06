@@ -2,10 +2,64 @@ import { Request, Response } from 'express';
 import { Doctor, ConsultationType } from '../types';
 import { getDbPool } from '../config/db';
 
+const normalizeLocation = (loc: any) => {
+  if (typeof loc === 'string') {
+    try { loc = JSON.parse(loc); } catch { loc = {}; }
+  }
+  const l = (typeof loc === 'object' && loc !== null) ? loc : {};
+  const city = l.city || '';
+  const country = l.country || '';
+  const address = l.address || [city, country].filter(Boolean).join(', ') || 'International Medical Center';
+  return {
+    latitude: Number(l.latitude) || 0,
+    longitude: Number(l.longitude) || 0,
+    address,
+    city,
+    country,
+  };
+};
+
+const normalizeTimeSlots = (slots: any[]): any[] => {
+  const today = new Date();
+  if (!Array.isArray(slots) || slots.length === 0) {
+    return [
+      { id: 'slot_1', date: today.toISOString().split('T')[0], startTime: '10:00', endTime: '10:30', isBooked: false },
+      { id: 'slot_2', date: today.toISOString().split('T')[0], startTime: '14:30', endTime: '15:00', isBooked: false },
+    ];
+  }
+  return slots.map((s, idx) => {
+    if (typeof s === 'object' && s !== null && s.startTime) {
+      return {
+        id: s.id || `slot_${idx}`,
+        date: s.date || today.toISOString().split('T')[0],
+        startTime: s.startTime,
+        endTime: s.endTime || '11:00',
+        isBooked: Boolean(s.isBooked),
+      };
+    }
+    const slotStr = typeof s === 'string' ? s : `Slot ${idx + 1}`;
+    const isTomorrow = slotStr.toLowerCase().includes('tomorrow');
+    const targetDate = new Date(today);
+    if (isTomorrow) targetDate.setDate(targetDate.getDate() + 1);
+    const dateStr = targetDate.toISOString().split('T')[0];
+    const timeMatch = slotStr.match(/\b\d{1,2}:\d{2}\b/);
+    const startTime = timeMatch ? timeMatch[0] : (10 + idx) + ':00';
+    const [h, m] = startTime.split(':').map(Number);
+    const endTime = `${String(h + (m >= 30 ? 1 : 0)).padStart(2, '0')}:${String((m + 30) % 60).padStart(2, '0')}`;
+    return {
+      id: `slot_${idx}_${startTime.replace(':', '')}`,
+      date: dateStr,
+      startTime,
+      endTime,
+      isBooked: false,
+    };
+  });
+};
+
 // GET /api/doctors
 export const getDoctors = async (req: Request, res: Response) => {
   try {
-    const { specialty, consultationType, minRating } = req.query;
+    const { specialty, consultationType, minRating, country } = req.query;
     const pool = getDbPool();
 
     if (!pool) {
@@ -32,7 +86,7 @@ export const getDoctors = async (req: Request, res: Response) => {
       specialty: r.specialty,
       subSpecialty: r.sub_specialty,
       hospital: r.hospital,
-      location: r.location,
+      location: normalizeLocation(r.location),
       rating: Number(r.rating),
       reviewCount: r.review_count,
       experience: r.experience,
@@ -42,7 +96,7 @@ export const getDoctors = async (req: Request, res: Response) => {
       about: r.about,
       qualifications: r.qualifications || [],
       languages: r.languages || [],
-      availableSlots: r.available_slots || [],
+      availableSlots: normalizeTimeSlots(r.available_slots || []),
       isAvailableNow: r.is_available_now,
       consultationType: r.consultation_type || ['video'],
       verified: r.verified,
@@ -51,6 +105,15 @@ export const getDoctors = async (req: Request, res: Response) => {
     if (typeof consultationType === 'string') {
       doctors = doctors.filter(d =>
         d.consultationType.includes(consultationType as ConsultationType)
+      );
+    }
+
+    if (typeof country === 'string' && country.trim() && country.toLowerCase() !== 'all') {
+      const c = country.toLowerCase().trim();
+      doctors = doctors.filter(d =>
+        (d.location.country && d.location.country.toLowerCase().includes(c)) ||
+        (d.location.city && d.location.city.toLowerCase().includes(c)) ||
+        (d.hospital && d.hospital.toLowerCase().includes(c))
       );
     }
 
@@ -86,7 +149,7 @@ export const getDoctorById = async (req: Request, res: Response) => {
       specialty: r.specialty,
       subSpecialty: r.sub_specialty,
       hospital: r.hospital,
-      location: r.location,
+      location: normalizeLocation(r.location),
       rating: Number(r.rating),
       reviewCount: r.review_count,
       experience: r.experience,
@@ -96,7 +159,7 @@ export const getDoctorById = async (req: Request, res: Response) => {
       about: r.about,
       qualifications: r.qualifications || [],
       languages: r.languages || [],
-      availableSlots: r.available_slots || [],
+      availableSlots: normalizeTimeSlots(r.available_slots || []),
       isAvailableNow: r.is_available_now,
       consultationType: r.consultation_type || ['video'],
       verified: r.verified,

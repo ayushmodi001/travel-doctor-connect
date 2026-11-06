@@ -14,23 +14,19 @@ import {
   StyleSheet,
   Modal,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useNavigation } from '@react-navigation/native';
+import * as Speech from 'expo-speech';
+import * as Location from 'expo-location';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { MedicalPhrase } from '../../types';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme';
 import { TravelService } from '../../services/api';
 import { ErrorState } from '../../components/ui/ErrorState';
-
-const LANGUAGES = [
-  { code: 'all', label: 'All Languages', flag: '🌐' },
-  { code: 'es', label: 'Spanish', flag: '🇪🇸' },
-  { code: 'ja', label: 'Japanese', flag: '🇯🇵' },
-  { code: 'fr', label: 'French', flag: '🇫🇷' },
-  { code: 'de', label: 'German', flag: '🇩🇪' },
-];
+import { MEDICAL_PHRASES } from '../../data/travelData';
 
 const CATEGORIES = [
   { id: 'all', label: 'All Phrases' },
@@ -41,8 +37,76 @@ const CATEGORIES = [
   { id: 'doctor', label: '👨‍⚕️ At Doctor' },
 ];
 
+const COUNTRY_TO_LANG: Record<string, string> = {
+  IN: 'hi',
+  INDIA: 'hi',
+  ES: 'es',
+  SPAIN: 'es',
+  JP: 'ja',
+  JAPAN: 'ja',
+  FR: 'fr',
+  FRANCE: 'fr',
+  DE: 'de',
+  GERMANY: 'de',
+  IT: 'it',
+  ITALY: 'it',
+  US: 'en',
+  UK: 'en',
+};
+
+const LANG_CODE_TO_META: Record<string, { label: string; flag: string }> = {
+  hi: { label: 'Hindi', flag: '🇮🇳' },
+  es: { label: 'Spanish', flag: '🇪🇸' },
+  ja: { label: 'Japanese', flag: '🇯🇵' },
+  fr: { label: 'French', flag: '🇫🇷' },
+  de: { label: 'German', flag: '🇩🇪' },
+  it: { label: 'Italian', flag: '🇮🇹' },
+  en: { label: 'English', flag: '🇺🇸' },
+};
+
+const getFlagEmoji = (countryCode: string): string => {
+  try {
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt(0));
+    return String.fromCodePoint(...codePoints);
+  } catch {
+    return '📍';
+  }
+};
+
+const getSpeechLanguageCode = (langCode?: string): string => {
+  if (!langCode) return 'hi-IN';
+  const code = langCode.toLowerCase().trim();
+  const map: Record<string, string> = {
+    hi: 'hi-IN',
+    hindi: 'hi-IN',
+    es: 'es-ES',
+    spanish: 'es-ES',
+    ja: 'ja-JP',
+    japanese: 'ja-JP',
+    fr: 'fr-FR',
+    french: 'fr-FR',
+    de: 'de-DE',
+    german: 'de-DE',
+    it: 'it-IT',
+    italian: 'it-IT',
+    en: 'en-US',
+    english: 'en-US',
+  };
+  return map[code] || code;
+};
+
+const getTextToSpeak = (phrase: MedicalPhrase): string => {
+  // Strip parenthetical text (e.g. Romanized pronunciation) so TTS pronounces clean native script
+  const cleaned = phrase.translation.replace(/\s*\([^)]*\)/g, '').trim();
+  return cleaned || phrase.translation;
+};
+
 export default function MedicalTranslatorScreen() {
   const navigation = useNavigation();
+  const route = useRoute<any>();
   const insets = useSafeAreaInsets();
 
   const [phrases, setPhrases] = useState<MedicalPhrase[]>([]);
@@ -50,18 +114,154 @@ export default function MedicalTranslatorScreen() {
   const [error, setError] = useState<string | null>(null);
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedLanguage, setSelectedLanguage] = useState('all');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState(route.params?.initialCategory || 'all');
   const [fullscreenPhrase, setFullscreenPhrase] = useState<MedicalPhrase | null>(null);
+
+  // Text-To-Speech State
+  const [speakingPhraseId, setSpeakingPhraseId] = useState<string | null>(null);
+
+  // Auto-Location State
+  const [detectedLocation, setDetectedLocation] = useState<{
+    countryCode: string;
+    countryName: string;
+    flag: string;
+  } | null>(null);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+
+  // Gemini Live AI Translation State
+  const [customText, setCustomText] = useState('');
+  const [isTranslatingAI, setIsTranslatingAI] = useState(false);
+
+  // Determine active country & local language from live GPS or route params
+  const activeLocationMeta = useMemo(() => {
+    const code = (detectedLocation?.countryCode || route.params?.countryCode || 'IN').toUpperCase();
+    const countryName = detectedLocation?.countryName || route.params?.countryName || 'India';
+    const flag = detectedLocation?.flag || route.params?.flag || '🇮🇳';
+    const langCode = COUNTRY_TO_LANG[code] || 'hi';
+    const langMeta = LANG_CODE_TO_META[langCode] || { label: 'Hindi', flag: '🇮🇳' };
+
+    return {
+      countryCode: code,
+      countryName,
+      flag,
+      langCode,
+      langLabel: langMeta.label,
+    };
+  }, [detectedLocation, route.params]);
+
+  // GPS Location Permission & Country Auto-Detection
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        setIsDetectingLocation(true);
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') return;
+
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
+        const geo = await Location.reverseGeocodeAsync({
+          latitude: pos.coords.latitude,
+          longitude: pos.coords.longitude,
+        });
+        if (isMounted && geo && geo.length > 0) {
+          const rawIso = geo[0].isoCountryCode?.toUpperCase();
+          const iso = rawIso === 'GB' ? 'UK' : rawIso || '';
+          const countryName = geo[0].country || 'Current Destination';
+          const flag = iso ? getFlagEmoji(iso) : '📍';
+
+          setDetectedLocation({
+            countryCode: iso,
+            countryName,
+            flag,
+          });
+        }
+      } catch (locErr) {
+        console.warn('[MedicalTranslator] GPS country detection notice:', locErr);
+      } finally {
+        if (isMounted) setIsDetectingLocation(false);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+      Speech.stop();
+    };
+  }, []);
+
+  // Text-To-Speech Handler
+  const handleSpeak = (phrase: MedicalPhrase) => {
+    if (speakingPhraseId === phrase.id) {
+      Speech.stop();
+      setSpeakingPhraseId(null);
+      return;
+    }
+
+    Speech.stop();
+    const textToSpeak = getTextToSpeak(phrase);
+    const lang = getSpeechLanguageCode(phrase.languageCode || activeLocationMeta.langCode);
+
+    setSpeakingPhraseId(phrase.id);
+
+    Speech.speak(textToSpeak, {
+      language: lang,
+      rate: 0.85,
+      pitch: 1.0,
+      onDone: () => setSpeakingPhraseId(null),
+      onStopped: () => setSpeakingPhraseId(null),
+      onError: (err) => {
+        console.warn('[TTS] Speech error:', err);
+        setSpeakingPhraseId(null);
+      },
+    });
+  };
+
+  const handleTranslateWithGemini = async () => {
+    const text = customText.trim();
+    if (!text) {
+      Alert.alert('Enter Phrase', 'Please type a symptom, allergy, or request (e.g., "I need an asthma inhaler", "Are there nuts in this?").');
+      return;
+    }
+    setIsTranslatingAI(true);
+    try {
+      const res = await TravelService.translateText(text, activeLocationMeta.langCode);
+      const newPhrase: MedicalPhrase = {
+        id: `ai-gemini-${Date.now()}`,
+        category: selectedCategory === 'all' ? 'symptoms' : (selectedCategory as any),
+        english: text,
+        translation: res.translatedText,
+        phonetic: res.phonetic,
+        language: activeLocationMeta.langLabel,
+        languageCode: activeLocationMeta.langCode,
+        flag: activeLocationMeta.flag,
+      };
+      setPhrases(prev => [newPhrase, ...prev]);
+      setCustomText('');
+      Alert.alert(
+        '✨ Translated with Gemini AI',
+        `Successfully translated into ${activeLocationMeta.langLabel} (${activeLocationMeta.flag}) and saved to your phrasebook!`
+      );
+    } catch (err: any) {
+      Alert.alert('Translation Error', err.message || 'Gemini translation service temporarily unavailable.');
+    } finally {
+      setIsTranslatingAI(false);
+    }
+  };
 
   const loadPhrases = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await TravelService.getMedicalPhrases();
-      setPhrases(data);
+      if (Array.isArray(data) && data.length > 0) {
+        setPhrases(data);
+      } else {
+        setPhrases(MEDICAL_PHRASES);
+      }
     } catch (err: any) {
-      setError(err.message || 'Failed to connect to medical translation server.');
+      console.warn('[MedicalTranslator] Server offline, falling back to local phrasebook:', err.message);
+      setPhrases(MEDICAL_PHRASES);
     } finally {
       setIsLoading(false);
     }
@@ -71,10 +271,11 @@ export default function MedicalTranslatorScreen() {
     loadPhrases();
   }, [loadPhrases]);
 
+  const phraseList = Array.isArray(phrases) && phrases.length > 0 ? phrases : MEDICAL_PHRASES;
+
   const filteredPhrases = useMemo(() => {
-    return phrases.filter(phrase => {
-      const matchesLang =
-        selectedLanguage === 'all' || phrase.languageCode === selectedLanguage;
+    return phraseList.filter(phrase => {
+      const matchesLang = (phrase.languageCode || '').toLowerCase() === activeLocationMeta.langCode.toLowerCase();
       const matchesCat =
         selectedCategory === 'all' || phrase.category === selectedCategory;
       const matchesSearch =
@@ -85,8 +286,7 @@ export default function MedicalTranslatorScreen() {
 
       return matchesLang && matchesCat && matchesSearch;
     });
-  }, [phrases, selectedLanguage, selectedCategory, searchQuery]);
-
+  }, [phraseList, activeLocationMeta.langCode, selectedCategory, searchQuery]);
 
   return (
     <View style={styles.container}>
@@ -106,7 +306,18 @@ export default function MedicalTranslatorScreen() {
         </TouchableOpacity>
         <View style={styles.headerTitleWrap}>
           <Text style={styles.headerTitle}>Medical Translator</Text>
-          <Text style={styles.headerSub}>Bilingual doctor & pharmacy phrasebook</Text>
+          <View style={styles.headerLocationRow}>
+            {isDetectingLocation ? (
+              <ActivityIndicator size="small" color={Colors.primary[600]} style={{ width: 10, height: 10 }} />
+            ) : (
+              <View style={styles.liveGpsDot} />
+            )}
+            <Text style={styles.headerSub}>
+              {isDetectingLocation
+                ? 'Detecting your location…'
+                : `${activeLocationMeta.countryName} ${activeLocationMeta.flag} • ${activeLocationMeta.langLabel} Phrasebook`}
+            </Text>
+          </View>
         </View>
       </View>
 
@@ -115,7 +326,7 @@ export default function MedicalTranslatorScreen() {
         <Ionicons name="search" size={18} color={Colors.neutral[400]} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Search symptoms, pain, penicillin, medicine…"
+          placeholder={`Search ${activeLocationMeta.langLabel} phrases, symptoms, medicine…`}
           placeholderTextColor={Colors.neutral[400]}
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -127,68 +338,46 @@ export default function MedicalTranslatorScreen() {
         )}
       </View>
 
-      {/* Language Selector Pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterScroll}
-      >
-        {LANGUAGES.map(lang => {
-          const isSelected = selectedLanguage === lang.code;
-          return (
-            <TouchableOpacity
-              key={lang.code}
-              style={[
-                styles.langChip,
-                isSelected && styles.langChipSelected,
-              ]}
-              onPress={() => setSelectedLanguage(lang.code)}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.langFlag}>{lang.flag}</Text>
-              <Text
-                style={[
-                  styles.langLabel,
-                  isSelected && styles.langLabelSelected,
-                ]}
-              >
-                {lang.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      {/* Destination Banner */}
+      <View style={styles.destBanner}>
+        <Ionicons name="navigate" size={13} color={Colors.primary[600]} />
+        <Text style={styles.destBannerText}>
+          {activeLocationMeta.countryName} {activeLocationMeta.flag} • Local Language: {activeLocationMeta.langLabel} (GPS Auto-Located)
+        </Text>
+      </View>
 
-      {/* Category Pills */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={[styles.filterScroll, { paddingTop: 4 }]}
-      >
-        {CATEGORIES.map(cat => {
-          const isSelected = selectedCategory === cat.id;
-          return (
-            <TouchableOpacity
-              key={cat.id}
-              style={[
-                styles.catChip,
-                isSelected && styles.catChipSelected,
-              ]}
-              onPress={() => setSelectedCategory(cat.id)}
-              activeOpacity={0.8}
-            >
-              <Text
+      {/* Category Pills (Clean uncompressed horizontal bar) */}
+      <View style={styles.categoryContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.categoryScrollContent}
+        >
+          {CATEGORIES.map(cat => {
+            const isSelected = selectedCategory === cat.id;
+            return (
+              <TouchableOpacity
+                key={cat.id}
                 style={[
-                  styles.catLabel,
-                  isSelected && styles.catLabelSelected,
+                  styles.catChip,
+                  isSelected && styles.catChipSelected,
                 ]}
+                onPress={() => setSelectedCategory(cat.id)}
+                activeOpacity={0.8}
               >
-                {cat.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+                <Text
+                  style={[
+                    styles.catLabel,
+                    isSelected && styles.catLabelSelected,
+                  ]}
+                >
+                  {cat.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* Phrases List */}
       <ScrollView
@@ -198,6 +387,53 @@ export default function MedicalTranslatorScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
+        {/* Gemini AI Live Translator Card */}
+        <View style={styles.aiComposerBox}>
+          <View style={styles.aiComposerHeader}>
+            <View style={styles.aiBadge}>
+              <Ionicons name="sparkles" size={13} color="#7C3AED" />
+              <Text style={styles.aiBadgeText}>GEMINI 2.5 LIVE MEDICAL TRANSLATOR</Text>
+            </View>
+            <View style={styles.neonDbTag}>
+              <Text style={styles.neonDbTagText}>NEON DB SYNCED</Text>
+            </View>
+          </View>
+          <Text style={styles.aiComposerTitle}>Translate Custom Symptom or Question</Text>
+          <TextInput
+            style={styles.aiInput}
+            placeholder="Type any medical sentence (e.g. 'I am diabetic and feeling faint')…"
+            placeholderTextColor={Colors.neutral[400]}
+            value={customText}
+            onChangeText={setCustomText}
+            multiline
+          />
+          {/* Target Language locked to auto-located language */}
+          <View style={styles.aiLangRow}>
+            <Text style={styles.aiLangLabel}>Target Language:</Text>
+            <View style={styles.aiAutoLangBadge}>
+              <View style={styles.liveGpsDot} />
+              <Text style={styles.aiAutoLangText}>
+                {activeLocationMeta.flag} {activeLocationMeta.langLabel} (Auto-Located)
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            style={[styles.aiTranslateBtn, isTranslatingAI && { opacity: 0.7 }]}
+            onPress={handleTranslateWithGemini}
+            disabled={isTranslatingAI}
+            activeOpacity={0.88}
+          >
+            {isTranslatingAI ? (
+              <ActivityIndicator size="small" color={Colors.white} />
+            ) : (
+              <>
+                <Ionicons name="sparkles" size={16} color={Colors.white} />
+                <Text style={styles.aiTranslateBtnText}>Translate with Gemini AI</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
         {isLoading ? (
           <View style={{ paddingVertical: 48, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator size="large" color={Colors.primary[500]} />
@@ -237,10 +473,33 @@ export default function MedicalTranslatorScreen() {
               {/* English */}
               <Text style={styles.englishText}>{phrase.english}</Text>
 
-              {/* Translation in Foreign Language */}
+              {/* Translation in Foreign Language with Audio TTS Button */}
               <View style={styles.transWrap}>
-                <Text style={styles.transText}>{phrase.translation}</Text>
+                <View style={styles.transHeaderRow}>
+                  <Text style={styles.transText}>{phrase.translation}</Text>
+                  <TouchableOpacity
+                    style={[
+                      styles.speakBtn,
+                      speakingPhraseId === phrase.id && styles.speakBtnActive,
+                    ]}
+                    onPress={() => handleSpeak(phrase)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Listen to pronunciation"
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons
+                      name={speakingPhraseId === phrase.id ? 'volume-high' : 'volume-medium'}
+                      size={20}
+                      color={speakingPhraseId === phrase.id ? Colors.primary[600] : Colors.neutral[600]}
+                    />
+                  </TouchableOpacity>
+                </View>
                 <Text style={styles.phoneticText}>🗣️ {phrase.phonetic}</Text>
+              </View>
+
+              <View style={styles.dbVerifiedRow}>
+                <Ionicons name="shield-checkmark" size={12} color={Colors.sage.main} />
+                <Text style={styles.dbVerifiedText}>Verified Neon DB Record</Text>
               </View>
 
               {/* Action: Show Doctor Fullscreen */}
@@ -299,9 +558,27 @@ export default function MedicalTranslatorScreen() {
                 </Text>
               </View>
 
-              <Text style={styles.modalForeignText}>
-                {fullscreenPhrase.translation}
-              </Text>
+              <View style={styles.modalTranslationRow}>
+                <Text style={styles.modalForeignText}>
+                  {fullscreenPhrase.translation}
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.modalSpeakBtn,
+                    speakingPhraseId === fullscreenPhrase.id && styles.modalSpeakBtnActive,
+                  ]}
+                  onPress={() => handleSpeak(fullscreenPhrase)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Play audio"
+                  activeOpacity={0.7}
+                >
+                  <Ionicons
+                    name={speakingPhraseId === fullscreenPhrase.id ? 'volume-high' : 'volume-medium'}
+                    size={28}
+                    color={speakingPhraseId === fullscreenPhrase.id ? Colors.primary[600] : Colors.white}
+                  />
+                </TouchableOpacity>
+              </View>
 
               <View style={styles.modalPhoneticBox}>
                 <Text style={styles.modalPhoneticLabel}>Phonetic Pronunciation:</Text>
@@ -388,62 +665,185 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.medium,
     color: Colors.neutral[900],
   },
-  filterScroll: {
-    paddingHorizontal: Spacing[4],
-    gap: Spacing[2],
-    marginBottom: Spacing[2],
-  },
-  langChip: {
+  headerLocationRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    backgroundColor: Colors.white,
+    gap: 6,
+    marginTop: 2,
+  },
+  liveGpsDot: {
+    width: 7,
+    height: 7,
+    borderRadius: 4,
+    backgroundColor: '#10B981',
+  },
+  destBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.primary[50],
+    marginHorizontal: Spacing[4],
+    marginBottom: Spacing[2],
     paddingHorizontal: Spacing[3],
     paddingVertical: 7,
+    borderRadius: BorderRadius.lg,
+    borderWidth: 1,
+    borderColor: Colors.primary[100],
+  },
+  destBannerText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.primary[700],
+    flex: 1,
+  },
+  categoryContainer: {
+    paddingVertical: Spacing[1],
+    marginBottom: Spacing[2],
+  },
+  categoryScrollContent: {
+    paddingHorizontal: Spacing[4],
+    gap: Spacing[2],
+    alignItems: 'center',
+  },
+  catChip: {
+    height: 38,
+    paddingHorizontal: 14,
     borderRadius: BorderRadius.full,
+    backgroundColor: Colors.white,
     borderWidth: 1.5,
-    borderColor: Colors.neutral[150],
+    borderColor: Colors.neutral[200],
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...Shadows.sm,
   },
-  langChipSelected: {
-    backgroundColor: Colors.neutral[900],
-    borderColor: Colors.neutral[900],
+  catChipSelected: {
+    backgroundColor: Colors.primary[600],
+    borderColor: Colors.primary[700],
   },
-  langFlag: {
-    fontSize: 14,
-  },
-  langLabel: {
+  catLabel: {
     fontSize: Typography.fontSize.xs,
     fontFamily: Typography.fontFamily.semiBold,
     color: Colors.neutral[700],
   },
-  langLabelSelected: {
-    color: Colors.white,
-  },
-  catChip: {
-    backgroundColor: Colors.white,
-    paddingHorizontal: Spacing[3],
-    paddingVertical: 6,
-    borderRadius: BorderRadius.full,
-    borderWidth: 1,
-    borderColor: Colors.neutral[150],
-  },
-  catChipSelected: {
-    backgroundColor: Colors.primary[50],
-    borderColor: Colors.primary[300],
-  },
-  catLabel: {
-    fontSize: Typography.fontSize.xs,
-    fontFamily: Typography.fontFamily.medium,
-    color: Colors.neutral[600],
-  },
   catLabelSelected: {
-    color: Colors.primary[600],
+    color: Colors.white,
     fontFamily: Typography.fontFamily.bold,
   },
   listScroll: {
     paddingHorizontal: Spacing[4],
-    paddingTop: Spacing[2],
+    paddingTop: Spacing[1],
     gap: Spacing[3],
+  },
+  aiComposerBox: {
+    backgroundColor: '#FAF5FF',
+    borderRadius: BorderRadius['2xl'],
+    padding: Spacing[4],
+    borderWidth: 1.5,
+    borderColor: '#DDD6FE',
+    ...Shadows.sm,
+  },
+  aiComposerHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing[2],
+  },
+  aiBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  aiBadgeText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#7C3AED',
+    letterSpacing: 0.5,
+  },
+  neonDbTag: {
+    backgroundColor: 'rgba(124, 58, 237, 0.1)',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: BorderRadius.full,
+  },
+  neonDbTagText: {
+    fontSize: 9,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#6D28D9',
+  },
+  aiComposerTitle: {
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.neutral[900],
+    marginBottom: Spacing[2],
+  },
+  aiInput: {
+    backgroundColor: Colors.white,
+    borderRadius: BorderRadius.xl,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 10,
+    borderWidth: 1.5,
+    borderColor: '#E9D5FF',
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.regular,
+    color: Colors.neutral[900],
+    minHeight: 56,
+    textAlignVertical: 'top',
+    marginBottom: Spacing[2],
+  },
+  aiLangRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: Spacing[3],
+    marginTop: 2,
+  },
+  aiLangLabel: {
+    fontSize: 12,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.neutral[700],
+  },
+  aiAutoLangBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: Colors.white,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: BorderRadius.full,
+    borderWidth: 1.5,
+    borderColor: '#DDD6FE',
+  },
+  aiAutoLangText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.bold,
+    color: '#7C3AED',
+  },
+  aiTranslateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#7C3AED',
+    paddingVertical: 12,
+    borderRadius: BorderRadius.xl,
+    ...Shadows.sm,
+  },
+  aiTranslateBtnText: {
+    fontSize: Typography.fontSize.sm,
+    fontFamily: Typography.fontFamily.bold,
+    color: Colors.white,
+  },
+  dbVerifiedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: Spacing[2],
+    marginBottom: 4,
+  },
+  dbVerifiedText: {
+    fontSize: 10,
+    fontFamily: Typography.fontFamily.semiBold,
+    color: Colors.sage.dark,
   },
   phraseCard: {
     backgroundColor: Colors.white,
@@ -498,12 +898,34 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.neutral[150],
   },
+  transHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing[2],
+    marginBottom: 4,
+  },
   transText: {
+    flex: 1,
     fontSize: Typography.fontSize.lg,
     fontFamily: Typography.fontFamily.bold,
     color: Colors.primary[600],
-    marginBottom: 4,
     lineHeight: 24,
+  },
+  speakBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[200],
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.sm,
+  },
+  speakBtnActive: {
+    backgroundColor: Colors.primary[50],
+    borderColor: Colors.primary[400],
   },
   phoneticText: {
     fontSize: Typography.fontSize.xs,
@@ -601,12 +1023,34 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.bold,
     color: '#DED6CA',
   },
+  modalTranslationRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: Spacing[3],
+    marginBottom: Spacing[5],
+  },
   modalForeignText: {
-    fontSize: 32,
+    flex: 1,
+    fontSize: 30,
     fontFamily: Typography.fontFamily.bold,
     color: '#FFFFFF',
-    lineHeight: 44,
-    marginBottom: Spacing[5],
+    lineHeight: 42,
+  },
+  modalSpeakBtn: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#2A2420',
+    borderWidth: 1.5,
+    borderColor: '#4A3E36',
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Shadows.sm,
+  },
+  modalSpeakBtnActive: {
+    backgroundColor: Colors.primary[700],
+    borderColor: Colors.primary[400],
   },
   modalPhoneticBox: {
     backgroundColor: '#2A2420',

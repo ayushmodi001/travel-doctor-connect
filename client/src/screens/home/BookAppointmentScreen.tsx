@@ -87,10 +87,17 @@ const BookAppointmentScreen: React.FC = () => {
           </View>
         )}
         <Button
-          label="Back to Home"
-          onPress={() => navigation.navigate('Home')}
+          label="View My Appointments"
+          onPress={() => (navigation as any).navigate('AppointmentsTab', { screen: 'Appointments' })}
           size="lg"
           style={styles.successBtn}
+        />
+        <Button
+          label="Back to Home"
+          variant="outline"
+          onPress={() => (navigation as any).navigate('HomeTab', { screen: 'Home' })}
+          size="lg"
+          style={[styles.successBtn, { marginTop: Spacing[3] }]}
         />
       </View>
     );

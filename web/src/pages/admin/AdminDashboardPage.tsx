@@ -151,9 +151,9 @@ export const AdminDashboardPage: React.FC = () => {
         `[${new Date().toLocaleTimeString()}] ✓ Persisted 12 verified entries into Neon PostgreSQL (table: travel_destinations)`,
         ...prev,
       ]);
-    } catch {
+    } catch (err: any) {
       setAiLogs((prev) => [
-        `[${new Date().toLocaleTimeString()}] ⚠ Completed localized sync for ${taskName}`,
+        `[${new Date().toLocaleTimeString()}] ❌ Error: ${err.message || 'Operation failed'}`,
         ...prev,
       ]);
     } finally {

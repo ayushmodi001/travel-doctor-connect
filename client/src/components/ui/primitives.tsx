@@ -13,6 +13,7 @@ import {
   Image,
   StyleSheet,
   ViewStyle,
+  StyleProp,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors, Typography, Spacing, BorderRadius, Shadows } from '../../theme';
@@ -27,7 +28,7 @@ interface ButtonProps {
   isLoading?: boolean;
   disabled?: boolean;
   icon?: keyof typeof Ionicons.glyphMap;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export const Button: React.FC<ButtonProps> = ({

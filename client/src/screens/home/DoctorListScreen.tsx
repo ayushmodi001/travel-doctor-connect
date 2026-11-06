@@ -42,6 +42,18 @@ const SORT_OPTIONS = [
   { label: 'Experience', value: 'experience' as const },
 ];
 
+const DESTINATION_FILTERS = [
+  { label: 'All Destinations', value: 'all', flag: '🌐' },
+  { label: 'Japan', value: 'Japan', flag: '🇯🇵' },
+  { label: 'France', value: 'France', flag: '🇫🇷' },
+  { label: 'United Kingdom', value: 'United Kingdom', flag: '🇬🇧' },
+  { label: 'United States', value: 'United States', flag: '🇺🇸' },
+  { label: 'Switzerland', value: 'Switzerland', flag: '🇨🇭' },
+  { label: 'Australia', value: 'Australia', flag: '🇦🇺' },
+  { label: 'Singapore', value: 'Singapore', flag: '🇸🇬' },
+  { label: 'India', value: 'India', flag: '🇮🇳' },
+];
+
 export const DoctorListScreen: React.FC = () => {
   const navigation = useNavigation<NavProp>();
   const route = useRoute<RoutePropType>();
@@ -53,6 +65,7 @@ export const DoctorListScreen: React.FC = () => {
   const [selectedType, setSelectedType] = useState<ConsultationType | 'all'>('all');
   const [selectedSort, setSelectedSort] = useState<'rating' | 'fee' | 'experience'>('rating');
   const [selectedSpecialty, setSelectedSpecialty] = useState(route.params?.specialty ?? '');
+  const [selectedCountry, setSelectedCountry] = useState<string>(route.params?.country ?? 'all');
   const [availableNow, setAvailableNow] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
@@ -71,13 +84,26 @@ export const DoctorListScreen: React.FC = () => {
 
       let result = await DoctorService.getDoctors(filter);
 
+      if (selectedCountry && selectedCountry !== 'all') {
+        const c = selectedCountry.toLowerCase();
+        result = result.filter(
+          d =>
+            (d.location?.country && d.location.country.toLowerCase().includes(c)) ||
+            (d.location?.city && d.location.city.toLowerCase().includes(c)) ||
+            (d.hospital && d.hospital.toLowerCase().includes(c)) ||
+            (d.about && d.about.toLowerCase().includes(c))
+        );
+      }
+
       if (debouncedSearch) {
         const q = debouncedSearch.toLowerCase();
         result = result.filter(
           d =>
             d.name.toLowerCase().includes(q) ||
             d.specialty.toLowerCase().includes(q) ||
-            d.hospital.toLowerCase().includes(q)
+            d.hospital.toLowerCase().includes(q) ||
+            (d.location?.city && d.location.city.toLowerCase().includes(q)) ||
+            (d.location?.country && d.location.country.toLowerCase().includes(q))
         );
       }
 
@@ -88,7 +114,7 @@ export const DoctorListScreen: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [debouncedSearch, selectedType, selectedSort, selectedSpecialty, availableNow]);
+  }, [debouncedSearch, selectedType, selectedSort, selectedSpecialty, selectedCountry, availableNow]);
 
   useEffect(() => {
     fetchDoctors();
@@ -141,7 +167,7 @@ export const DoctorListScreen: React.FC = () => {
         <Ionicons name="search-outline" size={18} color={Colors.neutral[400]} />
         <TextInput
           style={styles.searchInput}
-          placeholder={i18n.t('doctors.search')}
+          placeholder="Search Tokyo, Paris, London, Emergency, Cardiology…"
           placeholderTextColor={Colors.neutral[400]}
           value={searchText}
           onChangeText={setSearchText}
@@ -151,6 +177,37 @@ export const DoctorListScreen: React.FC = () => {
             <Ionicons name="close-circle" size={18} color={Colors.neutral[400]} />
           </TouchableOpacity>
         )}
+      </View>
+
+      {/* Destination Country Filter Pills */}
+      <View style={{ marginTop: Spacing[2] }}>
+        <FlatList
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          data={DESTINATION_FILTERS}
+          keyExtractor={(item: { label: string; value: string; flag: string }) => item.value}
+          contentContainerStyle={styles.countryScroll}
+          renderItem={({ item }: { item: { label: string; value: string; flag: string } }) => {
+            const isSelected = selectedCountry === item.value;
+            return (
+              <TouchableOpacity
+                style={[styles.countryChip, isSelected && styles.countryChipActive]}
+                onPress={() => setSelectedCountry(item.value)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.countryFlag}>{item.flag}</Text>
+                <Text
+                  style={[
+                    styles.countryChipText,
+                    isSelected && styles.countryChipTextActive,
+                  ]}
+                >
+                  {item.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          }}
+        />
       </View>
 
       {/* Filters Panel */}
@@ -345,6 +402,38 @@ const styles = StyleSheet.create({
     fontFamily: Typography.fontFamily.regular,
     color: Colors.neutral[900],
     paddingVertical: 0,
+  },
+  countryScroll: {
+    paddingHorizontal: Spacing[4],
+    gap: Spacing[2],
+    paddingVertical: 4,
+  },
+  countryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: Spacing[3],
+    paddingVertical: 7,
+    borderRadius: BorderRadius.full,
+    backgroundColor: Colors.white,
+    borderWidth: 1.5,
+    borderColor: Colors.neutral[150],
+  },
+  countryChipActive: {
+    backgroundColor: Colors.primary[50],
+    borderColor: Colors.primary[500],
+  },
+  countryFlag: {
+    fontSize: 14,
+  },
+  countryChipText: {
+    fontSize: Typography.fontSize.xs,
+    fontFamily: Typography.fontFamily.medium,
+    color: Colors.neutral[700],
+  },
+  countryChipTextActive: {
+    color: Colors.primary[700],
+    fontFamily: Typography.fontFamily.bold,
   },
 
   filtersPanel: {

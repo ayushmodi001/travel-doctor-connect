@@ -100,6 +100,7 @@ const HomeScreen: React.FC = () => {
   const [doctorError, setDoctorError] = useState<string | null>(null);
   const [userVitals, setUserVitals] = useState<UserVitalsData | null>(null);
   const [detectedLocation, setDetectedLocation] = useState<{
+    countryCode?: string;
     countryName: string;
     flag: string;
     emergencyNumber: string;
@@ -134,6 +135,7 @@ const HomeScreen: React.FC = () => {
           const country = geo[0].country || 'Current Destination';
           const ems = iso === 'US' ? '911' : iso === 'IN' ? '112 / 108' : '112';
           setDetectedLocation({
+            countryCode: iso,
             countryName: country,
             flag: iso ? getFlagEmoji(iso) : '📍',
             emergencyNumber: ems,
@@ -306,11 +308,27 @@ const HomeScreen: React.FC = () => {
         </View>
 
         <View style={styles.servicesGrid}>
-          {QUICK_SERVICES.map(service => (
+          {QUICK_SERVICES.map((service) => (
             <TouchableOpacity
               key={service.id}
               style={styles.serviceCard}
-              onPress={() => navigation.navigate(service.screen as any)}
+              onPress={() => {
+                if (service.screen === 'MedicineEquivalents') {
+                  navigation.navigate('MedicineEquivalents', {
+                    countryCode: detectedLocation?.countryCode,
+                    countryName: detectedLocation?.countryName,
+                    flag: detectedLocation?.flag,
+                  });
+                } else if (service.screen === 'MedicalTranslator') {
+                  navigation.navigate('MedicalTranslator', {
+                    countryCode: detectedLocation?.countryCode,
+                    countryName: detectedLocation?.countryName,
+                    flag: detectedLocation?.flag,
+                  });
+                } else {
+                  navigation.navigate(service.screen as any);
+                }
+              }}
               activeOpacity={0.85}
               accessibilityRole="button"
               accessibilityLabel={service.label}
